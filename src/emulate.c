@@ -1,5 +1,9 @@
 #include <stdlib.h>
 
-int main(int argc, char **argv) {
+
+
+int main(char source[], char dest[]) {
+
+
   return EXIT_SUCCESS;
 }
