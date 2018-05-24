@@ -1,4 +1,6 @@
 #include <stdlib.h>
+#include <stdio.h>
+
 /*
  *1. read line store in string
  *2. add labels to symbol table
@@ -9,6 +11,40 @@
  *7. next line (check file not ended, loop condition)
  *8. back to stage 1
  */
+
+
+
+
+//splits file into separate lines
+char **reader(char *src) {
+
+  FILE *file;
+  file = fopen(src, "r");
+
+  char **lines;
+  int x = 0;
+
+  if (file) {
+    while (!feof(file)) {
+      lines[x] = (char *) fgetc(file);
+    }
+  }
+
+  fclose(file);
+  return lines;
+}
+
+//writes binary represenation to binary file
+void writer(char *binary, char *dest) {
+  FILE *file;
+  file = fopen(dest, "wb");
+
+  if (file != NULL) {
+    fwrite(binary, sizeof(binary), 1, file);
+  }
+
+  fclose(file);
+}
 
 
 int main(int argc, char **argv) {
