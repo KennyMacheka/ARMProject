@@ -37,7 +37,8 @@ struct ARM_Processor{
   unsigned int sp;
 };
 
-int dataProcessing(char instruction[]) {
+int dataProcessing(struct ARM_Processor *processor,
+                   int I, int opCode, int s, int rn, int rd, int operand2) {
   return 0;
 }
 
@@ -67,12 +68,13 @@ int multiply(struct ARM_Processor *processor, int a, int s, int rd, int rn, int 
   return 0;
 }
 
-int singleDataTransfer(char instruction[]) {
+int singleDataTransfer(struct ARM_Processor *processor,
+                       int i, int p, int u, int l, int rn, int rd, int offset) {
   return 0;
 }
 
-int branch(char instruction[]) {
-  // TODO: WITH KENNY
+int branch(struct ARM_Processor *processor, int offset) {
+  // TODO WITH KENNY
   return 0;
 }
 
