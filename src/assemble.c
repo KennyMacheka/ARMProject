@@ -15,6 +15,7 @@
 
 
 
+int[0] convert_to_int(char *binary);
 
 //splits file into separate lines
 char **reader(char *src) {
@@ -39,19 +40,32 @@ char **reader(char *src) {
 void writer(char *binary, char *dest) {
   FILE *file;
   file = fopen(dest, "wb");
-
+  int bin = convert_to_int(binary);
   if (file != NULL) {
-    fwrite(binary, sizeof(binary), 1, file);
+    fwrite(bin, sizeof(int), 1, file);
   }
 
   fclose(file);
 }
 
+int convert_to_int(char *binary) {
+  int ints[sizeof(binary)/ 32];
+
+  for (int i = 0; i < sizeof(binary) / 32; i++) {
+    char word[32];
+    for (int j = 0; j < 32; j++) {
+      word[j] = binary[j + i * 32];
+    }
+    ints[i] = strtol(word, NULL, 2);
+  }
+  return ints;
+}
+
 
 /* Input is a tokenised instruction with instruction number given(see doc/instructionNum)
  * Output is a string contains '0' and '1' represents required binary number
- * */
-char* data_process_ins_assembler(char** tokenised_ins, int insNum) {
+  */
+char *data_process_ins_assembler(char **tokenised_ins, int insNum) {
   char result[33] = "";
   switch (insNum) {
     case 3://and
@@ -70,9 +84,6 @@ char* data_process_ins_assembler(char** tokenised_ins, int insNum) {
   }
   return result;
 }
-
-
-
 
 
 int main(int argc, char **argv) {
