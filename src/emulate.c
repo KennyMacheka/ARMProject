@@ -1,5 +1,6 @@
 #include <stdlib.h>
 #include <stdio.h>
+#include <assert.h>
 
 /**Might remove R0-R12 if they are not needed*/
 #define R0 0
@@ -28,14 +29,14 @@ const int GENERAL_REGISTERS = 13;
 const int MEMORY_LOCATIONS = 65536;
 
 struct ARM_Processor{
-  int memory[MEMORY_LOCATIONS];
-  int registers[GENERAL_REGISTERS];
+  int *memory;
+  int *registers;
   unsigned int cpsr;
   unsigned int pc;
 };
 
 int dataProcessing(struct ARM_Processor *processor,
-                   int i, int opCode, int s, int rn, int rd, int operand2) {
+                   int i, int opCode, int s, int rn, int rd, int operand2, int dummy1) {
   // setup operand2
 
   int carryOut = 0;
@@ -153,7 +154,7 @@ int dataProcessing(struct ARM_Processor *processor,
   return 0;
 }
 
-int multiply(struct ARM_Processor *processor, int a, int s, int rd, int rn, int rs, int rm) {
+int multiply(struct ARM_Processor *processor, int a, int s, int rd, int rn, int rs, int rm, int dummy1) {
   int val = 0;
 
   if (a) {
@@ -190,7 +191,8 @@ int singleDataTransfer(struct ARM_Processor *processor,
 }
 
 // offset can be negative (two's complement)
-int branch(struct ARM_Processor *processor, int offset) {
+int branch(struct ARM_Processor *processor,
+           int offset, int dummy1, int dummy2, int dummy3, int dummy4, int dummy5, int dummy6) {
   offset <<= 2;
   int mask = 0x02000000;
   if (mask & offset) {
@@ -203,6 +205,10 @@ int branch(struct ARM_Processor *processor, int offset) {
 
   processor->pc = processor->memory[processor->pc + offset];
   return 0;
+}
+
+void fetchDecodeExecute(struct ARM_Processor* processor) {
+
 }
 
 void initialiseProcessor (struct ARM_Processor* processor){
@@ -218,8 +224,6 @@ void initialiseProcessor (struct ARM_Processor* processor){
 
   processor->cpsr = 0;
   processor->pc = 0;
-  processor->lr = 0;
-  processor->sp = 0;
 }
 
 int *getBits (int x){
@@ -232,9 +236,7 @@ int *getBits (int x){
       bits[i] = 1;
     else
       bits[i] = 0;
-
     x = x << 1;
-
   }
 
   return bits;
