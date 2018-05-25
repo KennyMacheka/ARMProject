@@ -39,7 +39,7 @@ struct ARM_Processor{
 };
 
 int dataProcessing(struct ARM_Processor *processor,
-                   int I, int opCode, int s, int rn, int rd, int operand2);
+                   int i, int opCode, int s, int rn, int rd, int operand2);
 
 int multiply(struct ARM_Processor *processor, int a, int s, int rd, int rn, int rs, int rm);
 
@@ -75,14 +75,14 @@ int multiply(struct ARM_Processor *processor, int a, int s, int rd, int rn, int 
   return 0;
 }
 
-int singleDataTransfer(struct ARM_Processor *processor,
-                       int i, int p, int u, int l, int rn, int rd, int offset) {
-  return 0;
-}
 
-int branch(struct ARM_Processor *processor, int offset) {
-  // TODO WITH KENNY
-  return 0;
+void fetchDecodeExecute (struct ARMProcessor* processor){
+
+  /**
+    We need to fetch decode execute in turn
+    So an instruction r
+   */
+
 }
 
 void initialiseProcessor (struct ARM_Processor* processor){
@@ -170,7 +170,6 @@ int main(int argc, char **argv) {
   //First thing to do is to fetch
   //Then attempt to decode current instruction
   //Then attempt to execute
-
 
   return EXIT_SUCCESS;
 }
