@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 #include <stdlib.h>
 #include <stdio.h>
 
@@ -206,6 +207,10 @@ int branch(struct ARM_Processor *processor, int offset) {
 }
 
 void initialiseProcessor (struct ARM_Processor* processor){
+
+  processor->memory = calloc(MEMORY_LOCATIONS,sizeof(int));
+  processor->registers = calloc(GENERAL_REGISTERS, sizeof(int));
+
   for (int i = 0; i<MEMORY_LOCATIONS; i++){
     processor->memory[i] = 0;
     if (i < GENERAL_REGISTERS)
@@ -218,24 +223,75 @@ void initialiseProcessor (struct ARM_Processor* processor){
   processor->sp = 0;
 }
 
+int *getBits (int x){
+  int *bits = malloc(sizeof(int)*32);
+  int one = 1 << 31;
+
+
+  for (int i = 0; i<32; i++){
+    if ((x & one) == one )
+      bits[i] = 1;
+    else
+      bits[i] = 0;
+
+    x = x << 1;
+
+  }
+
+  return bits;
+
+}
+
+void outputInstructions (struct ARM_Processor processor){
+
+  for (int i = 0; i<MEMORY_LOCATIONS; i++){
+    int *bits = getBits(processor.memory[i]);
+
+    for (int j = 0; j<4; j++){
+      for (int k=0; k<8; k++)
+        printf("%d", bits[j*8 + k]);
+
+      printf(" ");
+    }
+
+    if (processor.memory[i] == 0)
+      break;
+
+    printf("\n");
+    free(bits);
+
+  }
+}
+
 int main(int argc, char **argv) {
   /**MEMORY IS IN LITTLE ENDIAN*/
   printf("object code to emulate: %s\n", argv[1]);
-  int readFile[MEMORY_LOCATIONS][WORD_SIZE];
   FILE* file = fopen(argv[1],"rb");
+  assert (file != NULL);
+
   int count = 0;
 
   struct ARM_Processor processor;
+  initialiseProcessor(&processor);
 
   while (count < MEMORY_LOCATIONS){
-    if (feof)
-        break;
+    if (feof(file))
+      break;
     //USES LITTLE ENDIAN
-    int word;
     fread(processor.memory+count,WORD_SIZE/8,1,file);
     count++;
   }
+  fclose(file);
+
+  printf("Number of instructions: %d\n", count);
+  outputInstructions(processor);
+
+  //At this point I've loaded all of the instructions into memory
+  //Now I have to run everything via fetch-decode execute cycle
+  //First thing to do is to fetch
+  //Then attempt to decode current instruction
+  //Then attempt to execute
+
 
   return EXIT_SUCCESS;
 }
-
