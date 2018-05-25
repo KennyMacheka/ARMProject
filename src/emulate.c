@@ -1,6 +1,6 @@
-
 #include <stdlib.h>
 #include <stdio.h>
+#include <assert.h>
 
 /**Might remove R0-R12 if they are not needed*/
 #define R0 0
@@ -102,17 +102,59 @@ void initialiseProcessor (struct ARM_Processor* processor){
   processor->sp = 0;
 }
 
+int *getBits (int x){
+  int *bits = malloc(sizeof(int)*32);
+  int one = 1 << 31;
+
+
+  for (int i = 0; i<32; i++){
+    if ((x & one) == one )
+      bits[i] = 1;
+    else
+      bits[i] = 0;
+
+    x = x << 1;
+
+  }
+
+  return bits;
+
+}
+
+void outputInstructions (struct ARM_Processor processor){
+
+  for (int i = 0; i<MEMORY_LOCATIONS; i++){
+    int *bits = getBits(processor.memory[i]);
+
+    for (int j = 0; j<4; j++){
+      for (int k=0; k<8; k++)
+        printf("%d", bits[j*8 + k]);
+
+      printf(" ");
+    }
+
+    if (processor.memory[i] == 0)
+      break;
+
+    printf("\n");
+    free(bits);
+
+  }
+}
+
 int main(int argc, char **argv) {
   /**MEMORY IS IN LITTLE ENDIAN*/
   printf("object code to emulate: %s\n", argv[1]);
-  int readFile[MEMORY_LOCATIONS][WORD_SIZE];
   FILE* file = fopen(argv[1],"rb");
+  assert (file != NULL);
+
   int count = 0;
 
   struct ARM_Processor processor;
+  initialiseProcessor(&processor);
 
   while (count < MEMORY_LOCATIONS){
-    if (feof)
+    if (feof(file))
         break;
     //USES LITTLE ENDIAN
     fread(processor.memory+count,WORD_SIZE/8,1,file);
@@ -121,6 +163,7 @@ int main(int argc, char **argv) {
   fclose(file);
 
   printf("Number of instructions: %d\n", count);
+  outputInstructions(processor);
 
   //At this point I've loaded all of the instructions into memory
   //Now I have to run everything via fetch-decode execute cycle
