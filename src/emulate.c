@@ -39,7 +39,7 @@ struct ARM_Processor{
 };
 
 int dataProcessing(struct ARM_Processor *processor,
-                   int i, int opCode, int s, int rn, int rd, int operand2);
+                   int I, int opCode, int s, int rn, int rd, int operand2);
 
 int multiply(struct ARM_Processor *processor, int a, int s, int rd, int rn, int rs, int rm);
 
@@ -49,39 +49,179 @@ int singleDataTransfer(struct ARM_Processor *processor,
 int branch(struct ARM_Processor *processor, int offset);
 
 
-int multiply(struct ARM_Processor *processor, int a, int s, int rd, int rn, int rs, int rm) {
-  int res = 0;
+int dataProcessing(struct ARM_Processor *processor,
+                   int i, int opCode, int s, int rn, int rd, int operand2, int dummy1) {
+  // setup operand2
 
-  if (a) {
-    res = processor->registers[rn];
-  }
+  int carryOut = 0;
 
-  res += processor->registers[rm] * processor->registers[rs];
+  if (i) {
+    int imm = operand2 & 0xFF;
+    int rotate = (operand2 & 0xF00) >> 7;
+    operand2 = imm;
+    for (int i = 0; i < rotate; i++) {
+      int rightMost = operand2 & 1;
+      operand2 >>= 1;
+      operand2 += rightMost << 31;
+      carryOut = rightMost;
+    }
+  } else {
+    int shift = (operand2 & 0xFF0) >> 4;
+    int rm = operand2 & 0xF;
 
-  if (s) {
-    if (res < 0) {
-      processor->cpsr = (processor->cpsr | N) & ~Z;
+    // shift specified by register
+    int amountToShift;
+    int shiftType = shift & 6;
+    if (shift & 1) {
+      int rs = shift >> 4;
+      amountToShift = processor->registers[rs] & 0xFF;
     } else {
-      processor->cpsr = processor->cpsr & ~N;
-      if (res == 0) {
-        processor->cpsr = processor->cpsr | Z;
-      } else {
-        processor->cpsr = processor->cpsr & ~Z;
-      } 
+      amountToShift = shift >> 3;
+    }
+
+    if (shiftType == 0) {
+      operand2 = processor->registers[rm] << (amountToShift - 1);
+      carryOut = operand2 & 0x80000000;
+      if (carryOut) {
+        carryOut = 1;
+      }
+      operand2 <<= 1;
+    } else if (shiftType == 1) {
+      operand2 = processor->registers[rm] >> amountToShift - 1;
+      carryOut = operand2 & 1;
+      operand2 >>= 1;
+    } else if (shiftType == 2) {
+      int sign = processor->registers[rm] & 0x80000000;
+      int magnitude = processor->registers[rm] & 0x7FFFFFFF >> amountToShift - 1;
+      carryOut = magnitude & 1;
+      magnitude >>= 1;
+      operand2 = magnitude;
+      if (sign) {
+        int signExtend = 0;
+        for (int i = sign; i < (sign / (amountToShift * 2)); i >> 1) {
+          signExtend += i;
+        }
+        operand2 += signExtend;
+      }
+    } else {
+      operand2 = processor->registers[rm];
+      for (int i = 0; i < amountToShift; i++) {
+        int rightMost = operand2 & 1;
+        operand2 >>= 1;
+        operand2 += rightMost << 31;
+        carryOut = rightMost;
+      }
     }
   }
 
-  processor->registers[rd] = res;
+  int val = processor->registers[rn];
+
+  if (opCode == 0 || opCode == 8) {
+    val &= operand2;
+  } else if (opCode == 1 || opCode == 9) {
+    val ^= operand2;
+  } else if (opCode == 2 || opCode == 10) {
+    val -= operand2;
+  }
+
+  if (opCode <= 4 || opCode == 12 || opCode == 13) {
+    if (opCode == 3) {
+      val = operand2 - val;
+    } else if (opCode == 4) {
+      val += operand2;
+    } else if (opCode == 12) {
+      val |= operand2;
+    } else if (opCode == 13) {
+      val = operand2;
+    }
+    processor->registers[rd] = val;
+  }
+
+  // arithmetic
+  if (opCode == 0 || opCode == 2 || opCode == 3 || opCode == 9) {
+    if (val > (1 << 31) || val < 0) {
+      carryOut = 1;
+    } else {
+      carryOut = 0;
+    }
+  }
+
+  if (s) {
+    if (carryOut) {
+      processor->cpsr = processor->cpsr | C;
+    } else {
+      processor->cpsr = processor->cpsr & ~C;
+    }
+
+    if (val < 0) {
+      processor->cpsr = (processor->cpsr | N) & ~Z;
+    } else {
+      processor->cpsr = processor->cpsr & ~N;
+      if (val == 0) {
+        processor->cpsr = processor->cpsr | Z;
+      } else {
+        processor->cpsr = processor->cpsr & ~Z;
+      }
+    }
+  }
+
   return 0;
 }
 
+int multiply(struct ARM_Processor *processor, int a, int s, int rd, int rn, int rs, int rm, int dummy1) {
+  int val = 0;
 
-void fetchDecodeExecute (struct ARMProcessor* processor){
+  if (a) {
+    val = processor->registers[rn];
+  }
 
-  /**
-    We need to fetch decode execute in turn
-    So an instruction r
-   */
+  val += processor->registers[rm] * processor->registers[rs];
+
+  if (s) {
+    if (val < 0) {
+      processor->cpsr = (processor->cpsr | N) & ~Z;
+    } else {
+      processor->cpsr = processor->cpsr & ~N;
+      if (val == 0) {
+        processor->cpsr = processor->cpsr | Z;
+      } else {
+        processor->cpsr = processor->cpsr & ~Z;
+      }
+    }
+  }
+
+  processor->registers[rd] = val;
+  return 0;
+}
+
+// offset is unsigned
+int singleDataTransfer(struct ARM_Processor *processor,
+                       int i, int p, int u, int l, int rn, int rd, int offset) {
+  if (i) {
+
+  }
+
+  return 0;
+}
+
+// offset can be negative (two's complement)
+int branch(struct ARM_Processor *processor,
+           int offset, int dummy1, int dummy2, int dummy3, int dummy4, int dummy5, int dummy6) {
+  offset <<= 2;
+  int mask = 0x02000000;
+  if (mask & offset) {
+    offset += 0xFFC00000;
+  }
+
+  // the offset will take into account the effect of the pipeline?
+  // TODO
+  //
+
+  processor->pc = processor->memory[processor->pc + offset];
+  return 0;
+}
+
+void fetchDecodeExecute(struct ARM_Processor* processor) {
 
 }
 
@@ -170,6 +310,7 @@ int main(int argc, char **argv) {
   //First thing to do is to fetch
   //Then attempt to decode current instruction
   //Then attempt to execute
+
 
   return EXIT_SUCCESS;
 }
