@@ -16,15 +16,16 @@
 #define R11 11
 #define R12 12
 
-
 #define N 0x80000000
 #define Z 0x40000000
 #define C 0X20000000
 #define V 0x10000000
 
+#define Cond 0xF0000000
+
 const int WORD_SIZE = 32;
 const int REGISTERS = 17;
-const int GENERAL_REGISTERS = 12;
+const int GENERAL_REGISTERS = 13;
 const int MEMORY_LOCATIONS = 65536;
 
 struct ARM_Processor{
@@ -36,11 +37,50 @@ struct ARM_Processor{
   unsigned int sp;
 };
 
+int dataProcessing(char instruction[]) {
+  return 0;
+}
+
+int multiply(struct ARM_Processor *processor, int a, int s, int rd, int rn, int rs, int rm) {
+  int res = 0;
+
+  if (a) {
+    res = processor->registers[rn];
+  }
+
+  res += processor->registers[rm] * processor->registers[rs];
+
+  if (s) {
+    if (res < 0) {
+      processor->cpsr = (processor->cpsr | N) & ~Z;
+    } else {
+      processor->cpsr = processor->cpsr & ~N;
+      if (res == 0) {
+        processor->cpsr = processor->cpsr | Z;
+      } else {
+        processor->cpsr = processor->cpsr & ~Z;
+      } 
+    }
+  }
+
+  processor->registers[rd] = res;
+  return 0;
+}
+
+int singleDataTransfer(char instruction[]) {
+  return 0;
+}
+
+int branch(char instruction[]) {
+  // TODO: WITH KENNY
+  return 0;
+}
+
 void initialiseProcessor (struct ARM_Processor* processor){
   for (int i = 0; i<MEMORY_LOCATIONS; i++){
     processor->memory[i] = 0;
     if (i < GENERAL_REGISTERS)
-      processor->registers = 0;
+      processor->registers[i] = 0;
   }
 
   processor->cpsr = 0;
@@ -64,84 +104,9 @@ int main(int argc, char **argv) {
     //USES LITTLE ENDIAN
     int word;
     fread(processor.memory+count,WORD_SIZE/8,1,file);
-    count ++;
+    count++;
   }
 
   return EXIT_SUCCESS;
 }
 
-int instruction(char instruction[]) {
-  if (instruction[27] == '1') { // 1--
-    branch(instruction);
-  } else { // 0--
-    if (instruction[26] == '1') { // 01-
-      singleDataTransfer(instruction);
-    } else { // 00-
-      if (instruction[25] == '0') { // 000
-        multiply(instruction);
-      } else if (instruction[25 == '1']) { // 001
-        dataProcessing(instruction);
-      }
-    }
-  }
-}
-
-int singleDataTransfer(char instruction[]) {
-  // cond
-  char cond[4];
-  for (int i = 0; i < 4; ++i) {
-    cond[i] = instruction[31-i];
-  }
-
-  // offset
-  char offset[12];
-  if (cond[25] == '1') {
-    // use shifted register
-    // TODO
-  } else if (cond[25] == '0') {
-    // immediate offset
-    for (int i = 0; i < 12; i++){
-      offset[i] = instruction[11-i];
-    }
-  }
-
-}
-
-int branch(char instruction[]) {
-  // cond
-  char cond[4];
-  for (int i = 0; i < 4; ++i) {
-    cond[i] = instruction[31-i];
-  }
-
-  // offset
-  char offset[32];
-  offset[0] = '0';
-  offset[1] = '0';
-  sign = instruction[23];
-  for (int i = 2; i < 32; ++i) {
-    if (i <= 23 {
-      offset[i] = instruction[23-i];
-    } else {
-      offset[i] = sign;
-    }
-  }
-
-  if (1) { // TODO: Compare cond with CPSR register
-    // TODO: offset PC
-  }
-
-  return 0;
-}
-
-int binCharArrToInt(int size, char arr[]) {
-  int base = 1;
-  int res = 0;
-  for (int i = size; i >= 0; i--) {
-    if (arr[i] == '1') {
-      res = res + base;
-    }
-    base*2;
-  }
-  return res;
-}
