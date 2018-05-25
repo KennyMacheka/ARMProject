@@ -1,3 +1,4 @@
+
 #include <stdlib.h>
 #include <stdio.h>
 
@@ -29,18 +30,24 @@ const int GENERAL_REGISTERS = 13;
 const int MEMORY_LOCATIONS = 65536;
 
 struct ARM_Processor{
-  int memory[MEMORY_LOCATIONS];
-  int registers[GENERAL_REGISTERS];
-  unsigned int cpsr;
-  unsigned int pc;
-  unsigned int lr;
-  unsigned int sp;
+    int *memory;
+    int *registers;
+    unsigned int cpsr;
+    unsigned int pc;
+    unsigned int lr;
+    unsigned int sp;
 };
 
 int dataProcessing(struct ARM_Processor *processor,
-                   int I, int opCode, int s, int rn, int rd, int operand2) {
-  return 0;
-}
+                   int I, int opCode, int s, int rn, int rd, int operand2);
+
+int multiply(struct ARM_Processor *processor, int a, int s, int rd, int rn, int rs, int rm);
+
+int singleDataTransfer(struct ARM_Processor *processor,
+                       int i, int p, int u, int l, int rn, int rd, int offset);
+
+int branch(struct ARM_Processor *processor, int offset);
+
 
 int multiply(struct ARM_Processor *processor, int a, int s, int rd, int rn, int rs, int rm) {
   int res = 0;
@@ -79,6 +86,10 @@ int branch(struct ARM_Processor *processor, int offset) {
 }
 
 void initialiseProcessor (struct ARM_Processor* processor){
+
+  processor->memory = calloc(MEMORY_LOCATIONS,sizeof(int));
+  processor->registers = calloc(GENERAL_REGISTERS, sizeof(int));
+
   for (int i = 0; i<MEMORY_LOCATIONS; i++){
     processor->memory[i] = 0;
     if (i < GENERAL_REGISTERS)
@@ -104,11 +115,19 @@ int main(int argc, char **argv) {
     if (feof)
         break;
     //USES LITTLE ENDIAN
-    int word;
     fread(processor.memory+count,WORD_SIZE/8,1,file);
     count++;
   }
+  fclose(file);
+
+  printf("Number of instructions: %d\n", count);
+
+  //At this point I've loaded all of the instructions into memory
+  //Now I have to run everything via fetch-decode execute cycle
+  //First thing to do is to fetch
+  //Then attempt to decode current instruction
+  //Then attempt to execute
+
 
   return EXIT_SUCCESS;
 }
-
