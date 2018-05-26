@@ -3,6 +3,7 @@
 #include <assert.h>
 #include <stdint.h>
 #include <string.h>
+#include <math.h>
 
 /*
  *1. read line store in string
@@ -60,9 +61,9 @@ int convert_to_int(char *binary) {
   }
   return ints;
 }
-/* Input is a string start with '#', might be decimal(#nnn) or hexadecimal(#0xnnn)
-   Output is a string represents the corresponding 12-bit binary number which first 4 bits are in
+
 /* Turn a string start with '#', might be decimal(#nnn) or hexadecimal(#0xnnn)
+ * (NOTE: ASSUME non-negative)
    into a string represents the corresponding 12-bit binary number which first 4 bits are in
    rotate field and last 8 bits are numbers.
    This 12-bit number actually represents a 32-bit number which is got by represent the 8-bit number
@@ -70,8 +71,64 @@ int convert_to_int(char *binary) {
 */
 //Q: e.g. how to represent #0x1999? Just error? however is within memory address limit
 void immToBinary(char imm[], char result[]) {
-//TODO
-
+  assert(imm[0] == '#');
+  uint32_t num = 0;
+  int bits = 0;
+  if(imm[1] == '0' && imm[2] == 'x') {//hexadecimal
+    for(int i = 3; imm[i]; i++) {
+      bits++;
+    }
+    for(int i = 3; imm[i]; i++) {
+      if(imm[i] >= '0' && imm[i] <= '9'){
+        num += (imm[i]- '0') * (int)pow(16, bits-i+2);
+      } else if(imm[i] >= 'a' && imm[i] <= 'f') {
+        num += (imm[i] - 'a' + 10) * (int)pow(16, bits-i+2);
+      } else if(imm[i] >= 'A' && imm[i] <= 'F') {
+        num += (imm[i] - 'A' + 10) * (int)pow(16, bits-i+2);
+      }
+    }
+  } else {//decimal
+    for(int i = 1; imm[i]; i++) {
+      bits++;
+    }
+    for(int i = 1; imm[i]; i++) {
+      assert(imm[i] >= '0' && imm[i] <= '9');
+      num += (imm[i]- '0') * (int)pow(10, bits-i);
+    }
+  }
+  //TODO: turn num into binary specified above
+  char biNum[33] = "";
+  uint32_t mask = 1 << 31;
+  for(int i = 0; i < 32; i++) {
+    if((num & mask) == 0) {
+      biNum[i] = '0';
+    } else {
+      biNum[i] = '1';
+    }
+    num <<= 1;
+  }
+  int lastSig = 0;
+  int firstSig = 0;
+  for(int i = 31; i >= 0; i--) {
+    if(biNum[i] == '1') {
+      lastSig = i;
+      break;
+    }
+  }
+  for(int i = 0; i < 32; i++) {
+    if(biNum[i] == '1') {
+      firstSig = i;
+      break;
+    }
+  }
+  int sigFigNo = lastSig - firstSig + 1;
+  if(sigFigNo > 8) {
+    fprintf(stderr, "error: cannot represent the immediate accurately");
+  } else {
+    if(sigFigNo + 31 - lastSig <= 8) {
+      
+    }
+  }
 
 }
 
@@ -108,26 +165,13 @@ int isImm(char token[]){
   return 0;
 }
 
-int convert_to_int(char *binary) {
-  int ints[sizeof(binary)/ 32];
-
-  for (int i = 0; i < sizeof(binary) / 32; i++) {
-    char word[32];
-    for (int j = 0; j < 32; j++) {
-      word[j] = binary[j + i * 32];
-    }
-    ints[i] = strtol(word, NULL, 2);
-  }
-  return ints;
-}
-
 
 /* Input is a tokenised instruction with instruction number given(see doc/instructionNum)
  * Output is a string contains '0' and '1' represents required binary number
  * */
-//TODO:remember to free
+//TODO:remember to free result in the caller
 //TODO:把相似部分拿出来，以优化switch,减少重复
-char* data_process_ins_assembler(char tokenised_ins[][12], int tokenCount, int insNum) {
+char* data_process_ins_assembler(char tokenised_ins[][14], int tokenCount, int insNum) {
   char *result = calloc(33, sizeof(char));
   result[0] = '1';//cond
   result[1] = '1';
@@ -157,12 +201,12 @@ char* data_process_ins_assembler(char tokenised_ins[][12], int tokenCount, int i
       result[18] = biRdNo[2];
       result[19] = biRdNo[3];
       char biOp2No[13] = "";
-      if(result[6]) {
-        immToBinary(tokenised_ins[3], biOp2No);
-
-      } //else shifted register(optional)
-
-
+      //if(result[6]){
+      immToBinary(tokenised_ins[3], biOp2No);
+      for(int i = 0; i < 12; i++) {
+        result[20+i] = biOp2No[i];
+      }
+      //} //else shifted register(optional)
     case 4://eor
     case 1://sub
     case 2://rsb
