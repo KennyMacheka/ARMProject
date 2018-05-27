@@ -23,7 +23,6 @@
 #define R12 12
 
 #define Cond 0xF0000000
-#define DUMMY_VAL 0
 #define N 31
 #define Z 30
 #define C 29
@@ -41,24 +40,66 @@
 #define le 0xD
 #define al 0xE
 
+#define DATA_PROCESSING 0
+#define MULTIPLY 1
+#define SINGLE_DATA_TRANSFER 2
+#define BRANCH 3
+
 //I'll need to create error flags
 uint32_t errors = 0;
 
+int dataProcessing(struct ARM_Processor *processor, uint32_t i, uint32_t opCode, uint32_t s,
+                   uint32_t rn, uint32_t rd, uint32_t operand2;
+
+int multiply(struct ARM_Processor *processor, uint32_t a, uint32_t s, uint32_t rd, uint32_t rn,
+             uint32_t rs, uint32_t rm);
+
+int singleDataTransfer(struct ARM_Processor *processor, uint32_t i, uint32_t p, uint32_t u,
+                       uint32_t l, uint32_t rn, uint32_t rd, uint32_t offset);
+
+int branch(struct ARM_Processor *processor, uint32_t offset);
 
 struct execute{
   bool terminate;
   bool ready;
   unsigned int condition;
-  int (*execFunc) (struct ARM_Processor*, uint32_t, uint32_t, uint32_t, uint32_t, uint32_t,
-                    uint32_t, uint32_t);
-  struct ARM_Processor* processor;
-  uint32_t arg2;
-  uint32_t arg3;
-  uint32_t arg4;
-  uint32_t arg5;
-  uint32_t arg6;
-  uint32_t arg7;
-  uint32_t arg8;
+
+  int operation;
+
+  union execArgs{
+    struct data{
+      uint32_t i;
+      uint32_t opCode;
+      uint32_t s;
+      uint32_t rn;
+      uint32_t rd;
+      uint32_t operand2;
+    }dataArgs;
+
+    struct mult{
+      uint32_t a;
+      uint32_t s;
+      uint32_t rd;
+      uint32_t rn;
+      uint32_t rs;
+      uint32_t rm;
+    }multArgs;
+
+    struct singleData{
+      uint32_t i;
+      uint32_t p;
+      uint32_t u;
+      uint32_t l;
+      uint32_t rn;
+      uint32_t rd;
+      uint32_t offset;
+    }singleDataArgs;
+
+    struct brn{
+      uint32_t offset;
+    }branchArgs;
+
+  }args;
 };
 
 struct decode{
@@ -80,7 +121,7 @@ void fetchDecodeExecute(struct ARM_Processor* processor) {
   pipeline.decoded.terminate = false;
   pipeline.decoded.ready = false;
   pipeline.fetched.ready = false;
-  pipeline.decoded.processor = processor;
+
 
   while (1){
     //Get status bits in cpsr register
@@ -135,11 +176,43 @@ void fetchDecodeExecute(struct ARM_Processor* processor) {
 
       }
 
+
       if (shouldExecute) {
-        pipeline.decoded.execFunc(pipeline.decoded.processor, pipeline.decoded.arg2,
-                                  pipeline.decoded.arg3, pipeline.decoded.arg4,
-                                  pipeline.decoded.arg5, pipeline.decoded.arg6,
-                                  pipeline.decoded.arg7, pipeline.decoded.arg8);
+        //No default case
+        switch (pipeline.decoded.operation){
+          case DATA_PROCESSING:
+
+            dataProcessing(processor, pipeline.decoded.args.dataArgs.i,
+                           pipeline.decoded.args.dataArgs.opCode,
+                           pipeline.decoded.args.dataArgs.s,
+                           pipeline.decoded.args.dataArgs.rn,
+                           pipeline.decoded.args.dataArgs.rd,
+                           pipeline.decoded.args.dataArgs.operand2);
+            break;
+
+          case MULTIPLY:
+            multiply(processor, pipeline.decoded.args.multArgs.a,
+                     pipeline.decoded.args.multArgs.s,
+                     pipeline.decoded.args.multArgs.rd,
+                     pipeline.decoded.args.multArgs.rn,
+                     pipeline.decoded.args.multArgs.rs,
+                     pipeline.decoded.args.multArgs.rm);
+            break;
+
+          case SINGLE_DATA_TRANSFER:
+            singleDataTransfer(processor, pipeline.decoded.args.singleDataArgs.i,
+                               pipeline.decoded.args.singleDataArgs.p,
+                               pipeline.decoded.args.singleDataArgs.u,
+                               pipeline.decoded.args.singleDataArgs.l,
+                               pipeline.decoded.args.singleDataArgs.rn,
+                               pipeline.decoded.args.singleDataArgs.rd,
+                               pipeline.decoded.args.singleDataArgs.offset);
+            break;
+
+          case BRANCH:
+            branch(processor, pipeline.decoded.args.branchArgs.offset);
+            break;
+        }
       }
       pipeline.decoded.ready = false;
     }
@@ -159,17 +232,10 @@ void fetchDecodeExecute(struct ARM_Processor* processor) {
 
         //Branch
         if (bit27 == 1) {
-          pipeline.decoded.execFunc = &branch;
+          pipeline.decoded.operation = BRANCH;
 
           //Offset
-          pipeline.decoded.arg2 = isolateBits(pipeline.fetched.instruction, 23, 0, 23);
-          pipeline.decoded.arg3 = DUMMY_VAL;
-          pipeline.decoded.arg4 = DUMMY_VAL;
-          pipeline.decoded.arg5 = DUMMY_VAL;
-          pipeline.decoded.arg6 = DUMMY_VAL;
-          pipeline.decoded.arg7 = DUMMY_VAL;
-          pipeline.decoded.arg8 = DUMMY_VAL;
-
+          pipeline.decoded.args.branchArgs.offset = isolateBits(pipeline.fetched.instruction, 23, 0, 23);
           pipeline.decoded.ready = true;
           pipeline.fetched.ready = false;
         }
@@ -180,20 +246,20 @@ void fetchDecodeExecute(struct ARM_Processor* processor) {
           //Single data transfer
           if (bit26 == 1){
             //I
-            pipeline.decoded.execFunc = &singleDataTransfer;
-            pipeline.decoded.arg2 = isolateBits(pipeline.fetched.instruction, 25, 25 , 0);
+            pipeline.decoded.operation = SINGLE_DATA_TRANSFER;
+            pipeline.decoded.args.singleDataArgs.i = isolateBits(pipeline.fetched.instruction, 25, 25 , 0);
             //P
-            pipeline.decoded.arg3 = isolateBits(pipeline.fetched.instruction, 24, 24 , 0);
+            pipeline.decoded.args.singleDataArgs.p = isolateBits(pipeline.fetched.instruction, 24, 24 , 0);
             //U
-            pipeline.decoded.arg4 = isolateBits(pipeline.fetched.instruction, 23, 23 , 0);
+            pipeline.decoded.args.singleDataArgs.u = isolateBits(pipeline.fetched.instruction, 23, 23 , 0);
             //L
-            pipeline.decoded.arg5 = isolateBits(pipeline.fetched.instruction, 20, 20 , 0);
+            pipeline.decoded.args.singleDataArgs.l = isolateBits(pipeline.fetched.instruction, 20, 20 , 0);
             //Rn
-            pipeline.decoded.arg6 = isolateBits(pipeline.fetched.instruction, 19, 16 , 3);
+            pipeline.decoded.args.singleDataArgs.rn = isolateBits(pipeline.fetched.instruction, 19, 16 , 3);
             //Rd
-            pipeline.decoded.arg7 = isolateBits(pipeline.fetched.instruction, 15, 12 , 3);
+            pipeline.decoded.args.singleDataArgs.rd = isolateBits(pipeline.fetched.instruction, 15, 12 , 3);
             //Offset
-            pipeline.decoded.arg8 = isolateBits(pipeline.fetched.instruction, 11, 0 , 11);
+            pipeline.decoded.args.singleDataArgs.offset = isolateBits(pipeline.fetched.instruction, 11, 0 , 11);
 
             pipeline.decoded.ready = true;
             pipeline.fetched.ready = false;
@@ -243,49 +309,44 @@ void fetchDecodeExecute(struct ARM_Processor* processor) {
               }
 
               if (isDataProcessing){
-                pipeline.decoded.execFunc = &dataProcessing;
-                pipeline.decoded.processor = processor;
+                pipeline.decoded.operation = DATA_PROCESSING;
 
                 //I
-                pipeline.decoded.arg2 = isolateBits(pipeline.fetched.instruction,25,25,0);
+                pipeline.decoded.args.dataArgs.i = isolateBits(pipeline.fetched.instruction,25,25,0);
                 //Opcode
-                pipeline.decoded.arg3 = isolateBits(pipeline.fetched.instruction,24,21,3);
+                pipeline.decoded.args.dataArgs.opCode = isolateBits(pipeline.fetched.instruction,24,21,3);
                 //S
-                pipeline.decoded.arg4 = bit20;
+                pipeline.decoded.args.dataArgs.s = bit20;
                 //rn
-                pipeline.decoded.arg5 = r1;
+                pipeline.decoded.args.dataArgs.rn= r1;
                 //rd
-                pipeline.decoded.arg6 = r2;
+                pipeline.decoded.args.dataArgs.rd= r2;
                 //opcode
-                pipeline.decoded.arg7 = isolateBits(pipeline.fetched.instruction,11,0,11);
-                pipeline.decoded.arg8 = DUMMY_VAL;
+                pipeline.decoded.args.dataArgs.opCode = isolateBits(pipeline.fetched.instruction,11,0,11);
                 pipeline.decoded.ready = true;
                 pipeline.fetched.ready = false;
               }
 
               //multiply
               else if (isMultiply){
-                pipeline.decoded.execFunc = &multiply;
-                pipeline.decoded.processor = processor;
+                pipeline.decoded.operation = MULTIPLY;
 
                 //A
-                pipeline.decoded.arg2 = isolateBits(pipeline.fetched.instruction,21,21,0);
+                pipeline.decoded.args.multArgs.a = isolateBits(pipeline.fetched.instruction,21,21,0);
                 //S
-                pipeline.decoded.arg3 = bit20;
+                pipeline.decoded.args.multArgs.s = bit20;
 
                 //Rd
-                pipeline.decoded.arg4 = r1;
+                pipeline.decoded.args.multArgs.rd = r1;
 
                 //Rn
-                pipeline.decoded.arg5 = r2;
+                pipeline.decoded.args.multArgs.rn = r2;
 
                 //Rs
-                pipeline.decoded.arg6 = isolateBits(pipeline.fetched.instruction,11,8,3);
+                pipeline.decoded.args.multArgs.rs = isolateBits(pipeline.fetched.instruction,11,8,3);
 
                 //Rm
-                pipeline.decoded.arg7 = isolateBits(pipeline.fetched.instruction,3,0,3);
-
-                pipeline.decoded.arg8 = DUMMY_VAL;
+                pipeline.decoded.args.multArgs.rm = isolateBits(pipeline.fetched.instruction,3,0,3);
 
                 pipeline.decoded.ready = true;
                 pipeline.fetched.ready = false;
@@ -305,17 +366,6 @@ void fetchDecodeExecute(struct ARM_Processor* processor) {
 
 }
 
-int dataProcessing(struct ARM_Processor *processor, uint32_t i, uint32_t opCode, uint32_t s,
-                   uint32_t rn, uint32_t rd, uint32_t operand2, uint32_t dummy1);
-
-int multiply(struct ARM_Processor *processor, uint32_t a, uint32_t s, uint32_t rd, uint32_t rn,
-             uint32_t rs, uint32_t rm, uint32_t dummy1);
-
-int singleDataTransfer(struct ARM_Processor *processor, uint32_t i, uint32_t p, uint32_t u,
-                       uint32_t l, uint32_t rn, uint32_t rd, uint32_t offset);
-
-int branch(struct ARM_Processor *processor, uint32_t offset, uint32_t dummy1, uint32_t dummy2,
-           uint32_t dummy3, uint32_t dummy4, uint32_t dummy5, uint32_t dummy6);
 
 
 /**
@@ -342,7 +392,7 @@ int branch(struct ARM_Processor *processor, uint32_t offset, uint32_t dummy1, ui
  */
 
 int dataProcessing(struct ARM_Processor *processor, uint32_t i, uint32_t opCode, uint32_t s,
-                   uint32_t rn, uint32_t rd, uint32_t operand2, uint32_t dummy1) {
+                   uint32_t rn, uint32_t rd, uint32_t operand2) {
   // setup operand2
 
   int carryOut = 0;
@@ -461,7 +511,7 @@ int dataProcessing(struct ARM_Processor *processor, uint32_t i, uint32_t opCode,
 }
 
 int multiply(struct ARM_Processor *processor, uint32_t a, uint32_t s, uint32_t rd, uint32_t rn,
-             uint32_t rs, uint32_t rm, uint32_t dummy1) {
+             uint32_t rs, uint32_t rm) {
   int val = 0;
 
   if (a) {
@@ -498,8 +548,7 @@ int singleDataTransfer(struct ARM_Processor *processor, uint32_t i, uint32_t p, 
 }
 
 // offset can be negative (two's complement)
-int branch(struct ARM_Processor *processor, uint32_t offset, uint32_t dummy1, uint32_t dummy2,
-           uint32_t dummy3, uint32_t dummy4, uint32_t dummy5, uint32_t dummy6) {
+int branch(struct ARM_Processor *processor, uint32_t offset) {
   offset <<= 2;
   int mask = 0x02000000;
   if (mask & offset) {
