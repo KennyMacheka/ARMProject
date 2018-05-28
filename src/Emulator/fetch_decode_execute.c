@@ -552,7 +552,7 @@ int multiply(struct ARM_Processor *processor, uint32_t a, uint32_t s, uint32_t r
   }
 
   processor->registers[rd] = val;
-  return 0;
+  return SUCCESS;
 }
 
 // Not finished
@@ -562,22 +562,30 @@ int singleDataTransfer(struct ARM_Processor *processor, uint32_t i, uint32_t p, 
 
   }
 
-  return 0;
+  return SUCCESS;
 }
 
-// Not finished
+
 int branch(struct ARM_Processor *processor, uint32_t offset) {
   offset <<= 2;
-  int mask = 0x02000000;
-  if (mask & offset) {
-    offset += 0xFFC00000;
-  }
 
-  // the offset will take into account the effect of the pipeline?
-  // TODO
-  //
+  //The offset is a 24 bit signed number
+  //To sign extend to 32 bits we just have to make every bit from 31-25 inclusive a 1
+  /** Proof:
+      Assume you have a negative number k represented using y bits which are in 2's complement
+      Let the power of the last bit be x. This is set to 1. Let y be the sum of the bits set to 1 that are not x.
+      Then we have -x + y = k
+      Let's increase the size of the bit representation to y+1, so the MSB is of value 2x
+      -2x + (x+y) = -x +y = k. Meaning if we increase bit by 1 and make MSB a 1, we have the same value
+      As this is general, this can be applied to any number using any number of bits*/
 
-  processor->pc = processor->memory[processor->pc + offset];
-  return 0;
+  for (uint32_t i = 32; i> 24; i--)
+    setBit(&offset,i, 1);
+
+  //Divide by 4 because emulator uses word addressing not byte addressing
+  int32_t signedOffset = (int32_t) offset/4;
+  processor->pc += signedOffset;
+  //Clear pipeline
+  pipeline.fetched.ready = false;
+  return SUCCESS;
 }
-
