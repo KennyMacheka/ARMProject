@@ -6,6 +6,7 @@
 #include "fetch_decode_execute.h"
 #include "processor_data_handling.h"
 #include "bit_operations_utilities.h"
+#include "result_flags.h"
 
 /**Might remove R0-R12 if they are not needed*/
 #define R0 0
@@ -23,6 +24,7 @@
 #define R12 12
 
 #define Cond 0xF0000000
+//The four positions in CPSR that can be 1 or 0
 #define N 31
 #define Z 30
 #define C 29
@@ -32,6 +34,7 @@
 
 
 //Numbers correspond to binary numbers in spec
+//Used to check if an instruction should be executed
 #define eq 0x0
 #define ne 0x1
 #define ge 0xA
@@ -40,16 +43,35 @@
 #define le 0xD
 #define al 0xE
 
+//Opcodes for data processing
+#define AND 0x0
+#define EOR 0x1
+#define SUB 0x2
+#define RSB 0x3
+#define ADD 0x4
+#define TST 0x8
+#define TEQ 0x9
+#define CMP 0xA
+#define ORR 0xC
+#define MOV 0xD
+
+//Opcodes for shifting
+#define LSL 0x0
+#define LSR 0x1
+#define ASR 0x2
+#define ROR 0x3
+
+//Custom opcodes for the four types of instructions
 #define DATA_PROCESSING 0
 #define MULTIPLY 1
 #define SINGLE_DATA_TRANSFER 2
 #define BRANCH 3
 
 //I'll need to create error flags
-uint32_t errors = 0;
+uint64_t errors = 0;
 
 int dataProcessing(struct ARM_Processor *processor, uint32_t i, uint32_t opCode, uint32_t s,
-                   uint32_t rn, uint32_t rd, uint32_t operand2;
+                   uint32_t rn, uint32_t rd, uint32_t operand2);
 
 int multiply(struct ARM_Processor *processor, uint32_t a, uint32_t s, uint32_t rd, uint32_t rn,
              uint32_t rs, uint32_t rm);
@@ -58,6 +80,7 @@ int singleDataTransfer(struct ARM_Processor *processor, uint32_t i, uint32_t p, 
                        uint32_t l, uint32_t rn, uint32_t rd, uint32_t offset);
 
 int branch(struct ARM_Processor *processor, uint32_t offset);
+
 
 struct execute{
   bool terminate;
@@ -173,7 +196,6 @@ void fetchDecodeExecute(struct ARM_Processor* processor) {
           break;
 
         //HANDLE DEFAULT CASE
-
       }
 
 
@@ -355,7 +377,6 @@ void fetchDecodeExecute(struct ARM_Processor* processor) {
             }
           }
         }
-
       }
     }
 
@@ -367,152 +388,149 @@ void fetchDecodeExecute(struct ARM_Processor* processor) {
 }
 
 
+int dataProcessing (struct ARM_Processor *processor, uint32_t i, uint32_t opCode, uint32_t s,
+                    uint32_t rn, uint32_t rd, uint32_t operand2){
 
-/**
+  //Set C to the value of carry out in any shift operation
+  uint32_t carryOut = 0;
+  uint32_t  rnContents = processor->registers[rn];
 
-    I've basically converted everything to unsigned int 32 bits, as it makes bit operations more consistent.
-    If you need to convert to signed int, just do (int) x.
-
-    The functions below need to be modified. "Try and make use of isolateBits from bit_operations_utilities.c
-    where possible" instead of bit masking. This function lets you take a segment of bits from an unsigned integer,
-    and you can place that segment of bits anywhere in a 32 bit container (everything else will be a 0).
-
-    For example:
-     If i have 00000000"111110"000000000000000000
-
-     And I want to take 111110 and place it so it's at the end, you would call
-     isolateBits(x,23,18,5)
-
-     where x is the initial number, 23 is the most significant bit of the segment, 18 is the
-     least significant bit, and 5 is where the most significant bit should be at the end.
-
-     So your result will be
-     00000000000000000000000000111110
-
- */
-
-int dataProcessing(struct ARM_Processor *processor, uint32_t i, uint32_t opCode, uint32_t s,
-                   uint32_t rn, uint32_t rd, uint32_t operand2) {
-  // setup operand2
-
-  int carryOut = 0;
-
-  if (i) {
-    int imm = operand2 & 0xFF;
-    int rotate = (operand2 & 0xF00) >> 7;
+  //Immediate value
+  if (i == 1){
+    uint32_t rotateAmount = isolateBits(operand2,11,8,3)*2;
+    uint32_t imm = isolateBits(operand2,7,0,7);
     operand2 = imm;
-    for (int i = 0; i < rotate; i++) {
-      int rightMost = operand2 & 1;
-      operand2 >>= 1;
-      operand2 += rightMost << 31;
-      carryOut = rightMost;
-    }
-  } else {
-    int shift = (operand2 & 0xFF0) >> 4;
-    int rm = operand2 & 0xF;
+    rotateRight(operand2, rotateAmount);
+    carryOut = isolateBits(imm, rotateAmount-1, rotateAmount-1, 0);
+  }
 
-    // shift specified by register
+  else{
+
+    uint32_t shift = isolateBits(operand2,11,4,7);
+    uint32_t rm = isolateBits(operand2,3,0,3);
+    uint32_t  shiftType = isolateBits(operand2,6,5,1);
     int amountToShift;
-    int shiftType = shift & 6;
-    if (shift & 1) {
-      int rs = shift >> 4;
-      amountToShift = processor->registers[rs] & 0xFF;
-    } else {
-      amountToShift = shift >> 3;
+
+    if (isolateBits(operand2,4,4,0) == 0){
+      amountToShift = isolateBits(operand2,11,7,4);
     }
 
-    if (shiftType == 0) {
-      operand2 = processor->registers[rm] << (amountToShift - 1);
-      carryOut = operand2 & 0x80000000;
-      if (carryOut) {
-        carryOut = 1;
-      }
-      operand2 <<= 1;
-    } else if (shiftType == 1) {
-      operand2 = processor->registers[rm] >> (amountToShift - 1);
-      carryOut = operand2 & 1;
-      operand2 >>= 1;
-    } else if (shiftType == 2) {
-      int sign = processor->registers[rm] & 0x80000000;
-      int magnitude = processor->registers[rm] & 0x7FFFFFFF >> (amountToShift - 1);
-      carryOut = magnitude & 1;
-      magnitude >>= 1;
-      operand2 = magnitude;
-      if (sign) {
-        int signExtend = 0;
-        for (int i = sign; i < (sign / (amountToShift * 2));i = i >> 1) {
-          signExtend += i;
-        }
-        operand2 += signExtend;
-      }
-    } else {
+    else{
+      uint32_t rs = isolateBits(operand2,11,8,3);
+      amountToShift = isolateBits(processor->registers[s],7,0,7);
+    }
+
+    //No need to shift anything
+    if (amountToShift == 0){
       operand2 = processor->registers[rm];
-      for (int i = 0; i < amountToShift; i++) {
-        int rightMost = operand2 & 1;
-        operand2 >>= 1;
-        operand2 += rightMost << 31;
-        carryOut = rightMost;
-      }
+    }
+
+    //Logical left
+    else if (shiftType == LSL){
+      operand2 = processor->registers[rm] << amountToShift;
+      //We want to get LSB of bits that are discarded in left shift
+      //This will be the carry out
+      carryOut = isolateBits(processor->registers[rm], 32-amountToShift, 32-amountToShift,0);
+    }
+
+    //Logical right
+    else if (shiftType == LSR){
+      operand2 = processor->registers[rm] >> amountToShift;
+      carryOut = isolateBits(processor->registers[rm], amountToShift-1, amountToShift-1,0);
+    }
+
+    //Arithmetic right
+    else if (shiftType == ASR){
+      //We'll either have 10000000000000000..00 or 000.00000
+      uint32_t sign = isolateBits(processor->registers[rm], 31, 31, 31);
+      carryOut = isolateBits(processor->registers[rm], amountToShift-1, amountToShift-1,0);
+      operand2 = processor->registers[rm] >> amountToShift;
+
+      //Preserve the sign of the MSB (i.e. if MSB is 1, any new zeros are converted to 1s)
+      for (int i = 0; i<amountToShift; i++, sign >>= 1)
+        operand2 |= sign;
+    }
+
+    //Rotate right
+    else if (shiftType == ROR){
+      operand2 = rotateRight(processor->registers[rm], amountToShift);
+      carryOut = isolateBits(processor->registers[rm], amountToShift-1, amountToShift-1, 0);
     }
   }
 
-  int val = processor->registers[rn];
+  uint32_t result;
 
-  if (opCode == 0 || opCode == 8) {
-    val &= operand2;
-  } else if (opCode == 1 || opCode == 9) {
-    val ^= operand2;
-  } else if (opCode == 2 || opCode == 10) {
-    val -= operand2;
+  if (opCode == AND || opCode == TST) {
+    result = rnContents & operand2;
   }
 
-  if (opCode <= 4 || opCode == 12 || opCode == 13) {
-    if (opCode == 3) {
-      val = operand2 - val;
-    } else if (opCode == 4) {
-      val += operand2;
-    } else if (opCode == 12) {
-      val |= operand2;
-    } else if (opCode == 13) {
-      val = operand2;
-    }
-    processor->registers[rd] = val;
+  else if (opCode == EOR || opCode == TEQ){
+    result = rnContents ^ operand2;
   }
 
-  // arithmetic
-  if (opCode == 0 || opCode == 2 || opCode == 3 || opCode == 9) {
-    if (val > (1 << 31) || val < 0) {
-      carryOut = 1;
-    } else {
+  else if (opCode == SUB || opCode == CMP){
+    result = rnContents - operand2;
+
+    //Produced a borrow
+    if (result > rnContents)
       carryOut = 0;
-    }
+
+    else
+      carryOut = 1;
   }
 
-  if (s) {
-    if (carryOut) {
-      processor->cpsr = processor->cpsr | C;
-    } else {
-      processor->cpsr = processor->cpsr & ~C;
-    }
+  else if (opCode == ADD){
+    result = rnContents + operand2;
 
-    if (val < 0) {
-      processor->cpsr = (processor->cpsr | N) & ~Z;
-    } else {
-      processor->cpsr = processor->cpsr & ~N;
-      if (val == 0) {
-        processor->cpsr = processor->cpsr | Z;
-      } else {
-        processor->cpsr = processor->cpsr & ~Z;
-      }
-    }
+    //Overflow
+    if (result < rnContents)
+      carryOut = 1;
+    else
+      carryOut = 0;
   }
 
-  return 0;
+  else if (opCode == RSB){
+    result = operand2 - rn;
+
+    if (result > operand2)
+      carryOut = 0;
+
+    else
+      carryOut = 1;
+  }
+
+  else if (opCode == ORR)
+    result = rn | operand2;
+
+  else if (opCode == MOV)
+    result = operand2;
+
+  //Add a flag to indicate invalid opcode
+  else
+    return FAILURE;
+
+
+  if (!(opCode == TST || opCode == TEQ || opCode == CMP))
+    processor->registers[rd] = result;
+
+  if (s == 1){
+      setBit(&processor->cpsr, C, carryOut);
+
+      if (result == 0)
+        setBit(&processor->cpsr, Z, 1);
+      else
+        setBit(&processor->cpsr, Z, 0);
+
+      setBit(&processor->cpsr, N, isolateBits(result,31,31,31));
+  }
+
+  return SUCCESS;
 }
 
+//Not finished
 int multiply(struct ARM_Processor *processor, uint32_t a, uint32_t s, uint32_t rd, uint32_t rn,
              uint32_t rs, uint32_t rm) {
-  int val = 0;
+  uint32_t val = 0;
 
   if (a) {
     val = processor->registers[rn];
@@ -537,7 +555,7 @@ int multiply(struct ARM_Processor *processor, uint32_t a, uint32_t s, uint32_t r
   return 0;
 }
 
-// offset is unsigned
+// Not finished
 int singleDataTransfer(struct ARM_Processor *processor, uint32_t i, uint32_t p, uint32_t u,
                        uint32_t l, uint32_t rn, uint32_t rd, uint32_t offset){
   if (i) {
@@ -547,7 +565,7 @@ int singleDataTransfer(struct ARM_Processor *processor, uint32_t i, uint32_t p, 
   return 0;
 }
 
-// offset can be negative (two's complement)
+// Not finished
 int branch(struct ARM_Processor *processor, uint32_t offset) {
   offset <<= 2;
   int mask = 0x02000000;

@@ -23,6 +23,32 @@ uint32_t *getBits (uint32_t x){
   return bits;
 }
 
+void setBit (uint32_t* num, uint32_t pos, uint32_t bit){
+  assert (bit == 1 || bit == 0);
+  bit <<= pos;
+
+
+  if (bit == 1) {
+    //Everything is a 0 except for at pos
+    *num |= bit;
+  }
+
+  else{
+    uint32_t flippedMask = UINT32_MAX - bit;
+    *num &= flippedMask;
+  }
+}
+
+uint32_t rotateRight (uint32_t num, int amount){
+  for (int i = 0; i<amount; i++){
+    uint32_t rightMost = num & 1;
+    num >>= 1;
+    num += (rightMost << 31);
+  }
+
+  return num;
+}
+
 uint32_t isolateBits (uint32_t num, int end, int start, int newPos){
   //This function isolates a specific segment of bits in a 32 bit word
   //It then moves the most significant bit of this isolated segment to a specific position
