@@ -345,7 +345,7 @@ void fetchDecodeExecute(struct ARM_Processor* processor) {
               //rd
               pipeline.decoded.args.dataArgs.rd= r2;
               //opcode
-              pipeline.decoded.args.dataArgs.opCode = isolateBits(pipeline.fetched.instruction,11,0,11);
+              pipeline.decoded.args.dataArgs.operand2 = isolateBits(pipeline.fetched.instruction,11,0,11);
               pipeline.decoded.ready = true;
               pipeline.fetched.ready = false;
             }
