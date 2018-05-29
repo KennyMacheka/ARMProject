@@ -59,14 +59,6 @@ int main(int argc, char **argv) {
   printf("Number of instructions: %d\n", count);
   outputInstructions(&processor);
 
-  //At this point I've loaded all of the instructions into memory
-  //Now I have to run everything via fetch-decode execute cycle
-  //First thing to do is to fetch
-  //Then attempt to decode current instruction
-  //Then attempt to execute
-
-
-  /*
 
   //Finished running
   for (int i = 0; i<GENERAL_REGISTERS; i++)
@@ -77,9 +69,10 @@ int main(int argc, char **argv) {
 
   printf("\n");
 
-  for (int i = 0; i<MEMORY_LOCATIONS; i++){
-    if (processor.memory[i] != 0)
-      printf("%08x\n", readMemoryLittleEndian(&processor,i));
-  }*/
+  for (int i = 0; i<MEMORY_LOCATIONS; i+=BLOCK_INTERVAL){
+    uint32_t  data = readMemoryLittleEndian(&processor, i);
+    if (data != 0)
+      printf("Address %08x: %08x\n", i, data);
+  }
   return EXIT_SUCCESS;
 }
