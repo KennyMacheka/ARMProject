@@ -532,7 +532,7 @@ int multiply(struct ARM_Processor *processor, uint32_t a, uint32_t s, uint32_t r
              uint32_t rs, uint32_t rm) {
   uint32_t val = 0;
 
-  if (a) {
+  if (a == 1) {
     val = processor->registers[rn];
   }
 
@@ -540,13 +540,14 @@ int multiply(struct ARM_Processor *processor, uint32_t a, uint32_t s, uint32_t r
 
   if (s) {
     if (val < 0) {
-      processor->cpsr = (processor->cpsr | N) & ~Z;
+      setBit(&processor->cpsr, Z, 0);
+      setBit(&processor->cpsr, N, 1);
     } else {
-      processor->cpsr = processor->cpsr & ~N;
+      setBit(&processor->cpsr, N, 0);
       if (val == 0) {
-        processor->cpsr = processor->cpsr | Z;
+        setBit(&processor->cpsr, Z, 1);
       } else {
-        processor->cpsr = processor->cpsr & ~Z;
+        setBit(&processor->cpsr, Z, 0);
       }
     }
   }
