@@ -559,8 +559,75 @@ int multiply(struct ARM_Processor *processor, uint32_t a, uint32_t s, uint32_t r
 // Not finished
 int singleDataTransfer(struct ARM_Processor *processor, uint32_t i, uint32_t p, uint32_t u,
                        uint32_t l, uint32_t rn, uint32_t rd, uint32_t offset){
-  if (i) {
+  //not immediate value
+  if (i != 1) {
 
+    uint32_t shift = isolateBits(offset,11,4,7);
+    uint32_t rm = isolateBits(offset,3,0,3);
+    uint32_t  shiftType = isolateBits(offset,6,5,1);
+    int amountToShift;
+
+    if (isolateBits(offset,4,4,0) == 0){
+      amountToShift = isolateBits(offset,11,7,4);
+    }
+
+    else {
+      uint32_t rs = isolateBits(offset,11,8,3);
+      amountToShift = isolateBits(processor->registers[s],7,0,7);
+    }
+
+    //No need to shift anything
+    if (amountToShift == 0){
+      offset2 = processor->registers[rm];
+    }
+
+    //Logical left
+    else if (shiftType == LSL){
+      offset = processor->registers[rm] << amountToShift;
+    }
+
+    //Logical right
+    else if (shiftType == LSR){
+      offset = processor->registers[rm] >> amountToShift;
+    }
+
+    //Arithmetic right
+    else if (shiftType == ASR){
+      //We'll either have 10000000000000000..00 or 000.00000
+      uint32_t sign = isolateBits(processor->registers[rm], 31, 31, 31);
+      offset = processor->registers[rm] >> amountToShift;
+
+      //Preserve the sign of the MSB (i.e. if MSB is 1, any new zeros are converted to 1s)
+      for (int i = 0; i<amountToShift; i++, sign >>= 1)
+        offset |= sign;
+    }
+
+    //Rotate right
+    else if (shiftType == ROR){
+      offset = rotateRight(processor->registers[rm], amountToShift);
+    }
+  }
+
+  int index, newIndex = processor->registers[rn]; 
+  
+  if (u == 1) {
+    newIndex += offset; 
+  } else {
+    newIndex -= offset;
+  }
+
+  // pre-indexing
+  if (p == 1) {
+    index = newIndex;
+  } else {
+    processor->reigsters[rn] = newIndex;
+  }
+
+  // load
+  if (l == 1) {
+  
+  } else {
+  
   }
 
   return SUCCESS;
