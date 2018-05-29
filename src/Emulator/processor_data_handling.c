@@ -5,9 +5,9 @@
 #include "bit_operations_utilities.h"
 
 
-
 const int WORD_SIZE = 32;
 const int REGISTERS = 17;
+const int BLOCK_INTERVAL = 4;
 const int GENERAL_REGISTERS = 13;
 
 //65536 bytes in main memory. Word length is 4 bytes, so divide that by 4
@@ -74,7 +74,7 @@ uint32_t readMemoryLittleEndian (struct ARM_Processor *processor, int location){
   uint8_t shiftAmount = 24;
   for (int i=0; i<4; i++){
     result += (processor->memory[location+i] << shiftAmount);
-    shiftAmount += 8;
+    shiftAmount -= 8;
   }
 
   return result;
@@ -88,7 +88,7 @@ void writeToMemory (struct ARM_Processor *processor, uint32_t data, int location
   int end = 7;
 
   for (int i = 0; i<4; i++){
-    processor->memory[location+i] = (uint8_t) isolateBits(data,start,end,7);
+    processor->memory[location+i] = (uint8_t) isolateBits(data,end,start,7);
     start += 8;
     end += 8;
   }

@@ -43,20 +43,21 @@ int main(int argc, char **argv) {
     if (feof(file))
         break;
 
-    fread(processor.memory+count,WORD_SIZE/8,1,file);
+    uint32_t instruction;
+    fread(&instruction,BLOCK_INTERVAL,1,file);
     /**Reading binary file (which is in little endian) causes its contents to be in big endian
        So we need to reverse this so data is stored correctly in little endian
        This doesn't really matter to provide an accurate simulation
        However, I've kept main memory in little endian form to represent a true
        likeness of the ARM processor*/
-    processor.memory[count] = reverseEndianness(processor.memory[count]);
-    count++;
+    writeToMemory(&processor, instruction, count);
+    count+= BLOCK_INTERVAL;
   }
   fclose(file);
 
-  fetchDecodeExecute(&processor);
-  //printf("Number of instructions: %d\n", count);
-  //outputInstructions(&processor);
+  //fetchDecodeExecute(&processor);
+  printf("Number of instructions: %d\n", count);
+  outputInstructions(&processor);
 
   //At this point I've loaded all of the instructions into memory
   //Now I have to run everything via fetch-decode execute cycle

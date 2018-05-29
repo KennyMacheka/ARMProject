@@ -384,7 +384,7 @@ void fetchDecodeExecute(struct ARM_Processor* processor) {
 
     pipeline.fetched.instruction = readMemory(processor,processor->pc);
     pipeline.fetched.ready = true;
-    processor->pc++;
+    processor->pc+= BLOCK_INTERVAL;
   }
 
 }
