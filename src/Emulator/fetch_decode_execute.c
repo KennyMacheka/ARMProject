@@ -2,7 +2,9 @@
 // Created by kenny on 26/05/18.
 //
 #include <stdint.h>
+#include <stdlib.h>
 #include <stdbool.h>
+#include <assert.h>
 #include "fetch_decode_execute.h"
 #include "processor_data_handling.h"
 #include "bit_operations_utilities.h"
@@ -387,7 +389,64 @@ void fetchDecodeExecute(struct ARM_Processor* processor) {
 
 }
 
+void compute12BitOperand (struct ARM_Processor *processor, uint32_t *operand, uint32_t *carryOut){
+  assert (operand != NULL);
+  uint32_t shift = isolateBits(*operand,11,4,7);
+  uint32_t rm = isolateBits(*operand,3,0,3);
+  uint32_t  shiftType = isolateBits(*operand,6,5,1);
+  int amountToShift;
+  uint32_t carry = 0;
 
+  if (isolateBits(*operand,4,4,0) == 0){
+    amountToShift = isolateBits(*operand,11,7,4);
+  }
+
+  else{
+    uint32_t rs = isolateBits(*operand,11,8,3);
+    amountToShift = isolateBits(*operand,7,0,7);
+  }
+
+  //No need to shift anything
+  if (amountToShift == 0){
+    *operand = processor->registers[rm];
+  }
+
+    //Logical left
+  else if (shiftType == LSL){
+    *operand = processor->registers[rm] << amountToShift;
+    //We want to get LSB of bits that are discarded in left shift
+    //This will be the carry out
+    carry = isolateBits(processor->registers[rm], 32-amountToShift, 32-amountToShift,0);
+  }
+
+    //Logical right
+  else if (shiftType == LSR){
+    *operand= processor->registers[rm] >> amountToShift;
+    carry = isolateBits(processor->registers[rm], amountToShift-1, amountToShift-1,0);
+  }
+
+    //Arithmetic right
+  else if (shiftType == ASR){
+    //We'll either have 10000000000000000..00 or 000.00000
+    uint32_t sign = isolateBits(processor->registers[rm], 31, 31, 31);
+    carry = isolateBits(processor->registers[rm], amountToShift-1, amountToShift-1,0);
+    *operand = processor->registers[rm] >> amountToShift;
+
+    //Preserve the sign of the MSB (i.e. if MSB is 1, any new zeros are converted to 1s)
+    for (int i = 0; i<amountToShift; i++, sign >>= 1)
+      *operand |= sign;
+  }
+
+    //Rotate right
+  else if (shiftType == ROR){
+    *operand = rotateRight(processor->registers[rm], amountToShift);
+    carry = isolateBits(processor->registers[rm], amountToShift-1, amountToShift-1, 0);
+  }
+
+  if (carryOut != NULL)
+    *carryOut = carry;
+
+}
 int dataProcessing (struct ARM_Processor *processor, uint32_t i, uint32_t opCode, uint32_t s,
                     uint32_t rn, uint32_t rd, uint32_t operand2){
 
@@ -405,57 +464,8 @@ int dataProcessing (struct ARM_Processor *processor, uint32_t i, uint32_t opCode
   }
 
   else{
+    compute12BitOperand(processor, &operand2, &carryOut);
 
-    uint32_t shift = isolateBits(operand2,11,4,7);
-    uint32_t rm = isolateBits(operand2,3,0,3);
-    uint32_t  shiftType = isolateBits(operand2,6,5,1);
-    int amountToShift;
-
-    if (isolateBits(operand2,4,4,0) == 0){
-      amountToShift = isolateBits(operand2,11,7,4);
-    }
-
-    else{
-      uint32_t rs = isolateBits(operand2,11,8,3);
-      amountToShift = isolateBits(processor->registers[s],7,0,7);
-    }
-
-    //No need to shift anything
-    if (amountToShift == 0){
-      operand2 = processor->registers[rm];
-    }
-
-    //Logical left
-    else if (shiftType == LSL){
-      operand2 = processor->registers[rm] << amountToShift;
-      //We want to get LSB of bits that are discarded in left shift
-      //This will be the carry out
-      carryOut = isolateBits(processor->registers[rm], 32-amountToShift, 32-amountToShift,0);
-    }
-
-    //Logical right
-    else if (shiftType == LSR){
-      operand2 = processor->registers[rm] >> amountToShift;
-      carryOut = isolateBits(processor->registers[rm], amountToShift-1, amountToShift-1,0);
-    }
-
-    //Arithmetic right
-    else if (shiftType == ASR){
-      //We'll either have 10000000000000000..00 or 000.00000
-      uint32_t sign = isolateBits(processor->registers[rm], 31, 31, 31);
-      carryOut = isolateBits(processor->registers[rm], amountToShift-1, amountToShift-1,0);
-      operand2 = processor->registers[rm] >> amountToShift;
-
-      //Preserve the sign of the MSB (i.e. if MSB is 1, any new zeros are converted to 1s)
-      for (int i = 0; i<amountToShift; i++, sign >>= 1)
-        operand2 |= sign;
-    }
-
-    //Rotate right
-    else if (shiftType == ROR){
-      operand2 = rotateRight(processor->registers[rm], amountToShift);
-      carryOut = isolateBits(processor->registers[rm], amountToShift-1, amountToShift-1, 0);
-    }
   }
 
   uint32_t result;
@@ -530,29 +540,23 @@ int dataProcessing (struct ARM_Processor *processor, uint32_t i, uint32_t opCode
 //Not finished
 int multiply(struct ARM_Processor *processor, uint32_t a, uint32_t s, uint32_t rd, uint32_t rn,
              uint32_t rs, uint32_t rm) {
-  uint32_t val = 0;
+  uint32_t result = 0;
 
   if (a == 1) {
-    val = processor->registers[rn];
+    result = processor->registers[rn];
   }
 
-  val += processor->registers[rm] * processor->registers[rs];
+  result += processor->registers[rm] * processor->registers[rs];
 
   if (s) {
-    if (val < 0) {
-      setBit(&processor->cpsr, Z, 0);
-      setBit(&processor->cpsr, N, 1);
+    setBit(&processor->cpsr, N, isolateBits(result,31,31,0));
+    if (result == 0) {
+      setBit(&processor->cpsr, Z, 1);
     } else {
-      setBit(&processor->cpsr, N, 0);
-      if (val == 0) {
-        setBit(&processor->cpsr, Z, 1);
-      } else {
-        setBit(&processor->cpsr, Z, 0);
-      }
+      setBit(&processor->cpsr, Z, 0);
     }
   }
-
-  processor->registers[rd] = val;
+  processor->registers[rd] = result;
   return SUCCESS;
 }
 
@@ -560,75 +564,31 @@ int multiply(struct ARM_Processor *processor, uint32_t a, uint32_t s, uint32_t r
 int singleDataTransfer(struct ARM_Processor *processor, uint32_t i, uint32_t p, uint32_t u,
                        uint32_t l, uint32_t rn, uint32_t rd, uint32_t offset){
   //not immediate value
-  if (i != 1) {
-
-    uint32_t shift = isolateBits(offset,11,4,7);
-    uint32_t rm = isolateBits(offset,3,0,3);
-    uint32_t  shiftType = isolateBits(offset,6,5,1);
-    int amountToShift;
-
-    if (isolateBits(offset,4,4,0) == 0){
-      amountToShift = isolateBits(offset,11,7,4);
-    }
-
-    else {
-      uint32_t rs = isolateBits(offset,11,8,3);
-      amountToShift = isolateBits(processor->registers[s],7,0,7);
-    }
-
-    //No need to shift anything
-    if (amountToShift == 0){
-      offset2 = processor->registers[rm];
-    }
-
-    //Logical left
-    else if (shiftType == LSL){
-      offset = processor->registers[rm] << amountToShift;
-    }
-
-    //Logical right
-    else if (shiftType == LSR){
-      offset = processor->registers[rm] >> amountToShift;
-    }
-
-    //Arithmetic right
-    else if (shiftType == ASR){
-      //We'll either have 10000000000000000..00 or 000.00000
-      uint32_t sign = isolateBits(processor->registers[rm], 31, 31, 31);
-      offset = processor->registers[rm] >> amountToShift;
-
-      //Preserve the sign of the MSB (i.e. if MSB is 1, any new zeros are converted to 1s)
-      for (int i = 0; i<amountToShift; i++, sign >>= 1)
-        offset |= sign;
-    }
-
-    //Rotate right
-    else if (shiftType == ROR){
-      offset = rotateRight(processor->registers[rm], amountToShift);
-    }
+  if (i == 1) {
+    compute12BitOperand(processor, &offset, NULL);
   }
 
-  int index, newIndex = processor->registers[rn]; 
-  
-  if (u == 1) {
-    newIndex += offset; 
-  } else {
-    newIndex -= offset;
-  }
+  uint32_t index, newIndex = processor->registers[rn];
+  uint32_t memoryLocation = processor->registers[rn];
+  //Subtract offset from base register
+  if (u == 0)
+    offset *= -1;
 
   // pre-indexing
-  if (p == 1) {
-    index = newIndex;
+  if (p == 1)
+    memoryLocation += offset;
+
+  // load from memory
+  if (l == 1) {
+    processor->registers[rd] = readMemory(processor, memoryLocation);
+  
   } else {
-    processor->reigsters[rn] = newIndex;
+    writeToMemory(processor,processor->registers[rd],memoryLocation);
   }
 
-  // load
-  if (l == 1) {
-  
-  } else {
-  
-  }
+  //Post indexing changes contents of register
+  if (p == 0)
+    processor->registers[rd] += offset;
 
   return SUCCESS;
 }
