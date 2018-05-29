@@ -43,9 +43,11 @@ int main(int argc, char **argv) {
     if (feof(file))
         break;
 
+    int blocksToRead = 1;
+
     uint32_t instruction;
-    size_t bytesRead = fread(&instruction,BLOCK_INTERVAL,1,file);
-    if (bytesRead != 1)
+    size_t bytesRead = fread(&instruction,BLOCK_INTERVAL,blocksToRead,file);
+    if (bytesRead != blocksToRead)
       break;
 
     /**Reading binary file (which is in little endian) causes its contents to be in big endian

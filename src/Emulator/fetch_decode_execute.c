@@ -169,7 +169,7 @@ void fetchDecodeExecute(struct ARM_Processor* processor) {
           break;
 
         case ne:
-          if (z == 1)
+          if (z == 0)
             shouldExecute = true;
           break;
 
@@ -530,7 +530,7 @@ int dataProcessing (struct ARM_Processor *processor, uint32_t i, uint32_t opCode
       else
         setBit(&processor->cpsr, Z, 0);
 
-      setBit(&processor->cpsr, N, isolateBits(result,31,31,31));
+      setBit(&processor->cpsr, N, isolateBits(result,31,31,0));
   }
 
   return SUCCESS;
@@ -597,7 +597,7 @@ int branch(struct ARM_Processor *processor, uint32_t offset) {
   offset <<= 2;
 
   //The offset is a 24 bit signed number
-  //To sign extend to 32 bits we just have to make every bit from 31-25 inclusive a 1
+  //To sign extend to 32 bits we just have to make every bit from 31-24 inclusive a 1
   /** Proof:
       Assume you have a negative number k represented using y bits which are in 2's complement
       Let the power of the last bit be x. This is set to 1. Let y be the sum of the bits set to 1 that are not x.
@@ -606,12 +606,14 @@ int branch(struct ARM_Processor *processor, uint32_t offset) {
       -2x + (x+y) = -x +y = k. Meaning if we increase bit by 1 and make MSB a 1, we have the same value
       As this is general, this can be applied to any number using any number of bits*/
 
-  for (uint32_t i = 32; i> 24; i--)
-    setBit(&offset,i, 1);
+  //Check if negative number
+  if (isolateBits(offset, 23, 23, 0) == 1){
+    for (uint32_t i = 31; i >= 24; i--)
+      setBit(&offset, i, 1);
+  }
 
-  //Divide by 4 because emulator uses word addressing not byte addressing
-  int32_t signedOffset = (int32_t) offset/4;
-  processor->pc += signedOffset;
+
+  processor->pc += offset;
   //Clear pipeline
   pipeline.fetched.ready = false;
   return SUCCESS;
