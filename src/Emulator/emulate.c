@@ -30,7 +30,7 @@
 
 int main(int argc, char **argv) {
   /**MEMORY IS IN LITTLE ENDIAN*/
-  printf("object code to emulate: %s\n", argv[1]);
+  // printf("object code to emulate: %s\n", argv[1]);
   FILE* file = fopen(argv[1],"rb");
   assert (file != NULL);
 
@@ -56,27 +56,22 @@ int main(int argc, char **argv) {
   fclose(file);
 
   fetchDecodeExecute(&processor);
-  /*
-  printf("Number of instructions: %d\n", count);
-  outputInstructions(&processor);*/
-
+  // printf("Number of instructions: %d\n", count);
+  // outputInstructions(&processor);
 
   printf("Registers:\n");
   //Finished running
   for (int i = 0; i<GENERAL_REGISTERS; i++)
-    printf("R%d: %d\n", i, processor.registers[i]);
+    printf("$%d:\t\t%d (0x%08x)\n", i, processor.registers[i], processor.registers[i]);
 
-  printf("sp: %d\nlr: %d\npc: %d\ncpsr: %d\n", processor.sp, processor.lr,
-          processor.pc, processor.cpsr);
+  printf("PC:\t\t%d (0x%08x)\n", processor.pc, processor.pc);
+  printf("CPSR:\t\t%d (0x%08x)\n", processor.cpsr, processor.cpsr);
 
-  printf ("Non Zero memory: \n");
-
-  printf("\n");
-
+  printf("Non-zero memory:\n");
   for (int i = 0; i<MEMORY_LOCATIONS; i+=BLOCK_INTERVAL){
     uint32_t  data = readMemoryLittleEndian(&processor, i);
     if (data != 0)
-      printf("Address %08x: %08x\n", i, data);
+      printf("0x%08x: 0x%08x\n", i, data);
   }
   return EXIT_SUCCESS;
 }
