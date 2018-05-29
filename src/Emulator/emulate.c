@@ -44,20 +44,24 @@ int main(int argc, char **argv) {
         break;
 
     uint32_t instruction;
-    fread(&instruction,BLOCK_INTERVAL,1,file);
+    size_t bytesRead = fread(&instruction,BLOCK_INTERVAL,1,file);
+    if (bytesRead != 1)
+      break;
+
     /**Reading binary file (which is in little endian) causes its contents to be in big endian
        So we need to reverse this so data is stored correctly in little endian
        This doesn't really matter to provide an accurate simulation
        However, I've kept main memory in little endian form to represent a true
        likeness of the ARM processor*/
+
     writeToMemory(&processor, instruction, count);
     count+= BLOCK_INTERVAL;
   }
   fclose(file);
 
   fetchDecodeExecute(&processor);
-  // printf("Number of instructions: %d\n", count);
-  // outputInstructions(&processor);
+  //printf("Number of instructions: %d\n", count);
+  //outputInstructions(&processor);
 
   printf("Registers:\n");
   //Finished running
