@@ -402,7 +402,7 @@ void compute12BitOperand (struct ARM_Processor *processor, uint32_t *operand, ui
 
   else{
     uint32_t rs = isolateBits(*operand,11,8,3);
-    amountToShift = isolateBits(*operand,7,0,7);
+    amountToShift = isolateBits(processor->registers[rs],7,0,7);
   }
 
   //No need to shift anything
@@ -456,10 +456,8 @@ int dataProcessing (struct ARM_Processor *processor, uint32_t i, uint32_t opCode
   //Immediate value
   if (i == 1){
     uint32_t rotateAmount = isolateBits(operand2,11,8,3)*2;
-    uint32_t imm = isolateBits(operand2,7,0,7);
-    operand2 = imm;
-    rotateRight(operand2, rotateAmount);
-    carryOut = isolateBits(imm, rotateAmount-1, rotateAmount-1, 0);
+    operand2 = rotateRight(isolateBits(operand2,7,0,7), rotateAmount);
+    carryOut = isolateBits(operand2, rotateAmount-1, rotateAmount-1, 0);
   }
 
   else{
