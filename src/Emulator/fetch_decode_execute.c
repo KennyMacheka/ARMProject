@@ -304,78 +304,76 @@ void fetchDecodeExecute(struct ARM_Processor* processor) {
               isMultiply = false;
             }
 
-            else{
+            else {
               //Assume instruction is data processing
               //Take bits 24-22 inclusive. If != 0, then instruction is not multiply
-              if (isolateBits(pipeline.fetched.instruction,24,22,2) != 0){
+              if (isolateBits(pipeline.fetched.instruction, 24, 22, 2) != 0) {
                 isDataProcessing = true;
                 isMultiply = false;
-              }
-
-              else{
+              } else {
                 int multiplySpecialValue = 9;
                 //Check bits 7-4
                 //If value is not 9, then we have data processing
                 uint32_t fourBits = isolateBits(pipeline.fetched.instruction, 7, 4, 3);
 
-                if (fourBits != multiplySpecialValue){
+                if (fourBits != multiplySpecialValue) {
                   isDataProcessing = true;
                   isMultiply = false;
                 }
 
-                //Must be multiplying (this is not possible for data procesing)
-                //I say invalid for data processing according to p. 7 of spec, where bit 7 is 0 not 1
-                else{
+                  //Must be multiplying (this is not possible for data procesing)
+                  //I say invalid for data processing according to p. 7 of spec, where bit 7 is 0 not 1
+                else {
                   isDataProcessing = false;
                   isMultiply = true;
 
                 }
               }
+            }
 
-              if (isDataProcessing){
-                pipeline.decoded.operation = DATA_PROCESSING;
+            if (isDataProcessing){
+              pipeline.decoded.operation = DATA_PROCESSING;
 
-                //I
-                pipeline.decoded.args.dataArgs.i = isolateBits(pipeline.fetched.instruction,25,25,0);
-                //Opcode
-                pipeline.decoded.args.dataArgs.opCode = isolateBits(pipeline.fetched.instruction,24,21,3);
-                //S
-                pipeline.decoded.args.dataArgs.s = bit20;
-                //rn
-                pipeline.decoded.args.dataArgs.rn= r1;
-                //rd
-                pipeline.decoded.args.dataArgs.rd= r2;
-                //opcode
-                pipeline.decoded.args.dataArgs.opCode = isolateBits(pipeline.fetched.instruction,11,0,11);
-                pipeline.decoded.ready = true;
-                pipeline.fetched.ready = false;
-              }
+              //I
+              pipeline.decoded.args.dataArgs.i = isolateBits(pipeline.fetched.instruction,25,25,0);
+              //Opcode
+              pipeline.decoded.args.dataArgs.opCode = isolateBits(pipeline.fetched.instruction,24,21,3);
+              //S
+              pipeline.decoded.args.dataArgs.s = bit20;
+              //rn
+              pipeline.decoded.args.dataArgs.rn= r1;
+              //rd
+              pipeline.decoded.args.dataArgs.rd= r2;
+              //opcode
+              pipeline.decoded.args.dataArgs.opCode = isolateBits(pipeline.fetched.instruction,11,0,11);
+              pipeline.decoded.ready = true;
+              pipeline.fetched.ready = false;
+            }
 
-              //multiply
-              else if (isMultiply){
-                pipeline.decoded.operation = MULTIPLY;
+            //multiply
+            else if (isMultiply){
+              pipeline.decoded.operation = MULTIPLY;
 
-                //A
-                pipeline.decoded.args.multArgs.a = isolateBits(pipeline.fetched.instruction,21,21,0);
-                //S
-                pipeline.decoded.args.multArgs.s = bit20;
+              //A
+              pipeline.decoded.args.multArgs.a = isolateBits(pipeline.fetched.instruction,21,21,0);
+              //S
+              pipeline.decoded.args.multArgs.s = bit20;
 
-                //Rd
-                pipeline.decoded.args.multArgs.rd = r1;
+              //Rd
+              pipeline.decoded.args.multArgs.rd = r1;
 
-                //Rn
-                pipeline.decoded.args.multArgs.rn = r2;
+              //Rn
+              pipeline.decoded.args.multArgs.rn = r2;
 
-                //Rs
-                pipeline.decoded.args.multArgs.rs = isolateBits(pipeline.fetched.instruction,11,8,3);
+              //Rs
+              pipeline.decoded.args.multArgs.rs = isolateBits(pipeline.fetched.instruction,11,8,3);
 
-                //Rm
-                pipeline.decoded.args.multArgs.rm = isolateBits(pipeline.fetched.instruction,3,0,3);
+              //Rm
+              pipeline.decoded.args.multArgs.rm = isolateBits(pipeline.fetched.instruction,3,0,3);
 
-                pipeline.decoded.ready = true;
-                pipeline.fetched.ready = false;
+              pipeline.decoded.ready = true;
+              pipeline.fetched.ready = false;
 
-              }
             }
           }
         }
@@ -386,6 +384,7 @@ void fetchDecodeExecute(struct ARM_Processor* processor) {
     pipeline.fetched.ready = true;
     processor->pc+= BLOCK_INTERVAL;
   }
+
 
 }
 

@@ -55,17 +55,21 @@ int main(int argc, char **argv) {
   }
   fclose(file);
 
-  //fetchDecodeExecute(&processor);
+  fetchDecodeExecute(&processor);
+  /*
   printf("Number of instructions: %d\n", count);
-  outputInstructions(&processor);
+  outputInstructions(&processor);*/
 
 
+  printf("Registers:\n");
   //Finished running
   for (int i = 0; i<GENERAL_REGISTERS; i++)
     printf("R%d: %d\n", i, processor.registers[i]);
 
   printf("sp: %d\nlr: %d\npc: %d\ncpsr: %d\n", processor.sp, processor.lr,
           processor.pc, processor.cpsr);
+
+  printf ("Non Zero memory: \n");
 
   printf("\n");
 
