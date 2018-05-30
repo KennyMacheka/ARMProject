@@ -70,6 +70,10 @@ uint32_t readMemory (struct ARM_Processor *processor, int location){
       Reads 4 8bits of data, starting from location, to location+3
       Then returns result in Big Endian form.
    */
+  if (location > MEMORY_LOCATIONS) {
+    printf("Error: Out of bounds memory access at address 0x%08x\n", location);
+    return 0;
+  }
   uint32_t result = 0;
   uint8_t shiftAmount = 0;
   for (int i=0; i<4; i++){
