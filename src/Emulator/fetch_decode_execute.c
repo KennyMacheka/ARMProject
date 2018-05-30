@@ -493,7 +493,7 @@ int dataProcessing (struct ARM_Processor *processor, uint32_t i, uint32_t opCode
   }
 
   else if (opCode == ORR)
-    result = rn | operand2;
+    result = rnContents | operand2;
 
   else if (opCode == MOV)
     result = operand2;
@@ -543,7 +543,7 @@ int multiply(struct ARM_Processor *processor, uint32_t a, uint32_t s, uint32_t r
   return SUCCESS;
 }
 
-// Not finished
+
 int singleDataTransfer(struct ARM_Processor *processor, uint32_t i, uint32_t p, uint32_t u,
                        uint32_t l, uint32_t rn, uint32_t rd, uint32_t offset){
   //Pre: rd !+ pc. Also PC won't come up in a shift register
