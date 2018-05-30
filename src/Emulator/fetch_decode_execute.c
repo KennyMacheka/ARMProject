@@ -553,7 +553,6 @@ int singleDataTransfer(struct ARM_Processor *processor, uint32_t i, uint32_t p, 
     compute12BitOperand(processor, &offset, NULL);
   }
 
-  uint32_t index, newIndex = processor->registers[rn];
   uint32_t memoryLocation = processor->registers[rn];
   //Subtract offset from base register
   if (u == 0)
@@ -566,14 +565,13 @@ int singleDataTransfer(struct ARM_Processor *processor, uint32_t i, uint32_t p, 
   // load from memory
   if (l == 1) {
     processor->registers[rd] = readMemory(processor, memoryLocation);
-  
   } else {
-    writeToMemory(processor,processor->registers[rd],memoryLocation);
+    writeToMemory(processor, processor->registers[rd], memoryLocation);
   }
 
   //Post indexing changes contents of register
   if (p == 0)
-    processor->registers[rd] += offset;
+    processor->registers[rn] += offset;
 
   return SUCCESS;
 }
