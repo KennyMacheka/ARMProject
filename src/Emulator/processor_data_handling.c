@@ -3,7 +3,20 @@
 #include <stdint.h>
 #include "processor_data_handling.h"
 #include "bit_operations_utilities.h"
-
+/**Might remove R0-R12 if they are not needed*/
+#define R0 0
+#define R1 1
+#define R2 2
+#define R3 3
+#define R4 4
+#define R5 5
+#define R6 6
+#define R7 7
+#define R8 8
+#define R9 9
+#define R10 10
+#define R11 11
+#define R12 12
 
 const int WORD_SIZE = 32;
 const int REGISTERS = 17;
@@ -12,22 +25,22 @@ const int GENERAL_REGISTERS = 13;
 
 //65536 bytes in main memory. Word length is 4 bytes, so divide that by 4
 const int MEMORY_LOCATIONS = 65536;
+const int SP = 13;
+const int LP = 14;
+const int PC = 15;
+const int CPSR = 16;
+
 
 void initialiseProcessor (struct ARM_Processor* processor){
 
   processor->memory = calloc(MEMORY_LOCATIONS,sizeof(uint8_t));
-  processor->registers = calloc(GENERAL_REGISTERS, sizeof(uint32_t));
+  processor->registers = calloc(REGISTERS, sizeof(uint32_t));
 
   for (int i = 0; i<MEMORY_LOCATIONS; i++){
     processor->memory[i] = 0;
-    if (i < GENERAL_REGISTERS)
+    if (i < REGISTERS)
       processor->registers[i] = 0;
   }
-
-  processor->cpsr = 0;
-  processor->pc = 0;
-  processor->lr = 0;
-  processor->sp = 0;
 }
 
 void outputInstructions (struct ARM_Processor* processor){

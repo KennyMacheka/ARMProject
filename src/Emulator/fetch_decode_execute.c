@@ -10,21 +10,6 @@
 #include "bit_operations_utilities.h"
 #include "result_flags.h"
 
-/**Might remove R0-R12 if they are not needed*/
-#define R0 0
-#define R1 1
-#define R2 2
-#define R3 3
-#define R4 4
-#define R5 5
-#define R6 6
-#define R7 7
-#define R8 8
-#define R9 9
-#define R10 10
-#define R11 11
-#define R12 12
-
 #define Cond 0xF0000000
 //The four positions in CPSR that can be 1 or 0
 #define N 31
@@ -71,6 +56,7 @@
 
 //I'll need to create error flags
 uint64_t errors = 0;
+
 
 int dataProcessing(struct ARM_Processor *processor, uint32_t i, uint32_t opCode, uint32_t s,
                    uint32_t rn, uint32_t rd, uint32_t operand2);
@@ -150,10 +136,10 @@ void fetchDecodeExecute(struct ARM_Processor* processor) {
 
   while (1){
     //Get status bits in cpsr register
-    uint32_t n = isolateBits(processor->cpsr, N, N, 0);
-    uint32_t z = isolateBits(processor->cpsr, Z, Z, 0);
-    uint32_t c = isolateBits(processor->cpsr, C, C, 0);
-    uint32_t v = isolateBits(processor->cpsr, V, V, 0);
+    uint32_t n = isolateBits(processor->registers[CPSR], N, N, 0);
+    uint32_t z = isolateBits(processor->registers[CPSR], Z, Z, 0);
+    uint32_t c = isolateBits(processor->registers[CPSR], C, C, 0);
+    uint32_t v = isolateBits(processor->registers[CPSR], V, V, 0);
 
     if (pipeline.decoded.ready){
       //Execute decoded instruction
@@ -380,9 +366,9 @@ void fetchDecodeExecute(struct ARM_Processor* processor) {
       }
     }
 
-    pipeline.fetched.instruction = readMemory(processor,processor->pc);
+    pipeline.fetched.instruction = readMemory(processor,processor->registers[PC]);
     pipeline.fetched.ready = true;
-    processor->pc+= BLOCK_INTERVAL;
+    processor->registers[PC] += BLOCK_INTERVAL;
   }
 
 
@@ -521,14 +507,14 @@ int dataProcessing (struct ARM_Processor *processor, uint32_t i, uint32_t opCode
     processor->registers[rd] = result;
 
   if (s == 1){
-      setBit(&processor->cpsr, C, carryOut);
+      setBit(&processor->registers[CPSR], C, carryOut);
 
       if (result == 0)
-        setBit(&processor->cpsr, Z, 1);
+        setBit(&processor->registers[CPSR], Z, 1);
       else
-        setBit(&processor->cpsr, Z, 0);
+        setBit(&processor->registers[CPSR], Z, 0);
 
-      setBit(&processor->cpsr, N, isolateBits(result,31,31,0));
+      setBit(&processor->registers[CPSR], N, isolateBits(result,31,31,0));
   }
 
   return SUCCESS;
@@ -546,11 +532,11 @@ int multiply(struct ARM_Processor *processor, uint32_t a, uint32_t s, uint32_t r
   result += processor->registers[rm] * processor->registers[rs];
 
   if (s) {
-    setBit(&processor->cpsr, N, isolateBits(result,31,31,0));
+    setBit(&processor->registers[CPSR], N, isolateBits(result,31,31,0));
     if (result == 0) {
-      setBit(&processor->cpsr, Z, 1);
+      setBit(&processor->registers[CPSR], Z, 1);
     } else {
-      setBit(&processor->cpsr, Z, 0);
+      setBit(&processor->registers[CPSR], Z, 0);
     }
   }
   processor->registers[rd] = result;
@@ -560,7 +546,9 @@ int multiply(struct ARM_Processor *processor, uint32_t a, uint32_t s, uint32_t r
 // Not finished
 int singleDataTransfer(struct ARM_Processor *processor, uint32_t i, uint32_t p, uint32_t u,
                        uint32_t l, uint32_t rn, uint32_t rd, uint32_t offset){
-  //not immediate value
+  //Pre: rd !+ pc. Also PC won't come up in a shift register
+  //Offset is a shifted register
+  //Add error flag for rm = rn
   if (i == 1) {
     compute12BitOperand(processor, &offset, NULL);
   }
@@ -611,7 +599,7 @@ int branch(struct ARM_Processor *processor, uint32_t offset) {
   }
 
 
-  processor->pc += offset;
+  processor->registers[PC] += offset;
   //Clear pipeline
   pipeline.fetched.ready = false;
   return SUCCESS;

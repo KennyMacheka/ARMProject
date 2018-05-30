@@ -11,17 +11,15 @@ extern const int REGISTERS;
 extern const int GENERAL_REGISTERS;
 extern const int MEMORY_LOCATIONS;
 extern const int BLOCK_INTERVAL;
+extern const int SP;
+extern const int LP;
+extern const int PC;
+extern const int CPSR;
 
-/**
 
- */
 struct ARM_Processor{
   uint8_t *memory;
   uint32_t *registers;
-  uint32_t cpsr;
-  uint32_t pc;
-  uint32_t lr;
-  uint32_t sp;
 };
 
 

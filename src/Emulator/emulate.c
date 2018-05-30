@@ -70,8 +70,8 @@ int main(int argc, char **argv) {
   for (int i = 0; i<GENERAL_REGISTERS; i++)
     printf("$%-3d:%11d (0x%08x)\n", i, processor.registers[i], processor.registers[i]);
 
-  printf("PC  :%11d (0x%08x)\n", processor.pc, processor.pc);
-  printf("CPSR:%11d (0x%08x)\n", processor.cpsr, processor.cpsr);
+  printf("PC  :%11d (0x%08x)\n", processor.registers[PC], processor.registers[PC]);
+  printf("CPSR:%11d (0x%08x)\n", processor.registers[CPSR], processor.registers[CPSR]);
 
   printf("Non-zero memory:\n");
   for (int i = 0; i<MEMORY_LOCATIONS; i+=BLOCK_INTERVAL){
