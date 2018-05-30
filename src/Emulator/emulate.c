@@ -68,10 +68,10 @@ int main(int argc, char **argv) {
   printf("Registers:\n");
   //Finished running
   for (int i = 0; i<GENERAL_REGISTERS; i++)
-    printf("$%-3d:%11d (0x%08x)\n", i, processor.registers[i], processor.registers[i]);
+    printf("$%-3d: %10d (0x%08x)\n", i, processor.registers[i], processor.registers[i]);
 
-  printf("PC  :%11d (0x%08x)\n", processor.registers[PC], processor.registers[PC]);
-  printf("CPSR:%11d (0x%08x)\n", processor.registers[CPSR], processor.registers[CPSR]);
+  printf("PC  : %10d (0x%08x)\n", processor.registers[PC], processor.registers[PC]);
+  printf("CPSR: %10d (0x%08x)\n", processor.registers[CPSR], processor.registers[CPSR]);
 
   printf("Non-zero memory:\n");
   for (int i = 0; i<MEMORY_LOCATIONS; i+=BLOCK_INTERVAL){
