@@ -25,14 +25,16 @@ uint32_t *getBits (uint32_t x){
 
 void setBit (uint32_t* num, uint32_t pos, uint32_t bit){
   assert (bit == 1 || bit == 0);
-  uint32_t  bitShifted = bit << pos;
+  uint32_t  bitShifted = (uint32_t) 1 << pos;
 
   if (bit == 1) {
-    //Everything is a 0 except for at pos
+    //Everything is a 0 except for at pos, so OR won't change anything except pos, which
+    //...will become 1
     *num |= bitShifted;
   }
 
   else{
+    //Position at pos for flippedMask will be 0, so ANDing will be 0
     uint32_t flippedMask = UINT32_MAX - bitShifted;
     *num &= flippedMask;
   }
