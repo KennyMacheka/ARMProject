@@ -497,7 +497,7 @@ int dataProcessing (struct ARM_Processor *processor, uint32_t i, uint32_t opCode
   }
 
   else if (opCode == RSB){
-    result = operand2 - rn;
+    result = operand2 - rnContents;
 
     if (result > operand2)
       carryOut = 0;
