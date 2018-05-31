@@ -10,6 +10,6 @@ set(SOURCE_FILES
         programs/gpio.s
         src/assembler/assemble.c
         src/emulate.c
-        src/Makefile)
+        src/Makefile src/assembler/file_processing.c src/assembler/binary_conversion.c src/assembler/first_pass.c)
 
 add_executable(arm11_35 ${SOURCE_FILES})

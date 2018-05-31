@@ -2,12 +2,13 @@
 // Created by Dhru on 25/05/2018.
 //
 
-#include <cstring>
+/*
+#include <mem.h>
 
 struct symbol_table{
     int address[];
     char *label[];
-    int size = 0;
+    int size;
 };
 
 void insert(struct symbol_table t, int address, char *label){
@@ -23,7 +24,7 @@ int get(struct symbol_table t, char *label){
     }
   }
   return -1;
-}
+}*/
 
 
 
