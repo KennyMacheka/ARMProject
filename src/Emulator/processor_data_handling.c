@@ -2,7 +2,7 @@
 #include <stdio.h>
 #include <stdint.h>
 #include "processor_data_handling.h"
-#include "../bit_operations_utilities.h"
+#include "../Utilities/bit_operations_utilities.h"
 
 const int WORD_SIZE = 32;
 const int REGISTERS = 17;

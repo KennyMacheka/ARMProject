@@ -2,7 +2,7 @@
 #include <stdio.h>
 #include <assert.h>
 #include "processor_data_handling.h"
-#include "../bit_operations_utilities.h"
+#include "../Utilities/bit_operations_utilities.h"
 #include "fetch_decode_execute.h"
 
 int main(int argc, char **argv) {
