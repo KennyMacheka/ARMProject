@@ -4,18 +4,21 @@
 #include "processor_data_handling.h"
 #include "../Utilities/bit_operations_utilities.h"
 
+#define GPIO_LOCATION_1 0x20200000
+#define GPIO_LOCATION_2 0x20200004
+#define GPIO_LOCATION_3 0x20200008
+
 const int WORD_SIZE = 32;
 const int REGISTERS = 17;
 const int BLOCK_INTERVAL = 4;
 const int GENERAL_REGISTERS = 13;
 
 //65536 bytes in main memory. Word length is 4 bytes, so divide that by 4
-const int MEMORY_LOCATIONS = 65536;
+const int MEMORY_LOCATIONS = 65548;
 const int SP = 13;
 const int LP = 14;
 const int PC = 15;
 const int CPSR = 16;
-
 
 void initialiseProcessor(struct ARM_Processor* processor) {
 
@@ -49,29 +52,34 @@ void outputInstructions(struct ARM_Processor* processor) {
   }
 }
 
+int transformGPIOLoc(int location) {
+  return location - GPIO_LOCATION_1 + MEMORY_LOCATIONS - 12;
+}
+
 uint32_t readMemory(struct ARM_Processor *processor, int location) {
   //b for byte
   /*
       Reads 4 8bits of data, starting from location, to location+3
       Then returns result in Big Endian form.
    */
-  if (location > MEMORY_LOCATIONS) {
-    printf("Error: Out of bounds memory access at address 0x%08x\n", location);
-    return 0;
+  if (location <= GPIO_LOCATION_3) {
+    if (location >= GPIO_LOCATION_1) {
+      return readMemory(processor, transformGPIOLoc(location));
+    } else if (location < MEMORY_LOCATIONS) {
+      uint32_t result = 0;
+      uint8_t shiftAmount = 0;
+      for (int i=0; i<4; i++) {
+        result += (processor->memory[location+i] << shiftAmount);
+        shiftAmount += 8;
+      }
+      return result;
+    }  
   }
-  uint32_t result = 0;
-  uint8_t shiftAmount = 0;
-  for (int i=0; i<4; i++) {
-    result += (processor->memory[location+i] << shiftAmount);
-    shiftAmount += 8;
-  }
-
-  return result;
-
+  printf("Error: Out of bounds memory access at address 0x%08x\n", location);
+  return 0;
 }
 
 uint32_t readMemoryLittleEndian(struct ARM_Processor *processor, int location) {
-
   uint32_t result = 0;
   uint8_t shiftAmount = 24;
   for (int i=0; i<4; i++) {
@@ -85,14 +93,22 @@ uint32_t readMemoryLittleEndian(struct ARM_Processor *processor, int location) {
 void writeToMemory(struct ARM_Processor *processor, uint32_t data, int location) {
   //pre : data in big endian
   //LSB is stored first (by the very definition of little endian)
+  
+  if (location <= GPIO_LOCATION_3) {
+    if (location >= GPIO_LOCATION_1) {
+      return writeToMemory(processor, data, transformGPIOLoc(location));
+    } else if (location < MEMORY_LOCATIONS) {
+      int start = 0;
+      int end = 7;
 
-  int start = 0;
-  int end = 7;
-
-  for (int i = 0; i<4; i++) {
-    processor->memory[location+i] = (uint8_t) isolateBits(data,end,start,7);
-    start += 8;
-    end += 8;
+      for (int i = 0; i<4; i++) {
+        processor->memory[location+i] = (uint8_t) isolateBits(data,end,start,7);
+        start += 8;
+        end += 8;
+      }
+      return;
+    }
+    printf("out of bounds");
   }
-
+  printf("out of bounds");
 }
