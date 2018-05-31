@@ -1,6 +1,9 @@
-//
-// Created by Dhru on 31/05/2018.
-//
+#include <stdio.h>
+#include <stdlib.h>
+#include <assert.h>
+#include <stdint.h>
+#include <string.h>
+#include <math.h>
 
 int convert_to_int(char *binary) {
   int ints[sizeof(binary)/ 32];
@@ -16,8 +19,15 @@ int convert_to_int(char *binary) {
 }
 
 void numToBinChar4(int *num, char *result[]) {
-  //TODO
-
+  uint16_t mask = 1 << 3;
+  for(int i = 0; i < 4; i++) {
+    if((num & mask) == 0) {
+      result[i] = '0';
+    } else {
+      result[i] = '1';
+    }
+    num = num << 1;
+  }
 }
 
 /* Turn a string start with '#', might be decimal(#nnn) or hexadecimal(#0xnnn)
@@ -100,14 +110,15 @@ void immToBinary(char imm[], char result[]) {
       int rotate0 = 31 - lastSig;
       if(rotate0 % 2 == 0) {
         int rotate = rotate0 / 2;
-        //TODO
-
+        numToBinChar4(rotate, result);
       } else {
         int rotate = (rotate0+1)/2;
-
-
+        numToBinChar4(rotate, result);
+        for(int i = 4; i < 11; i++) {
+          result[i] = result[i+1];
+        }
+        result[11] = '0';
       }
-
     }
   }
 
@@ -127,15 +138,7 @@ void regNumToBinary(char regNum[],char result[]) {
   } else {
     num += ((int)regNum[1] - (int)'0');
   }
-  uint16_t mask = 1 << 3;
-  for(int i = 0; i < 4; i++) {
-    if((num & mask) == 0) {
-      result[i] = '0';
-    } else {
-      result[i] = '1';
-    }
-    num = num << 1;
-  }
+  numToBinChar4(num, result);
 }
 
 /* take in a token, if is immediate, return 1; else return 0
@@ -189,6 +192,7 @@ char* data_process_ins_assembler(char tokenised_ins[][14], int tokenCount, int i
       }
       //} //else shifted register(optional)
     case 4://eor
+      
     case 1://sub
     case 2://rsb
     case 0://add
