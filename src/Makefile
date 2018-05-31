@@ -4,6 +4,8 @@ PROC= Emulator/processor_data_handling.h
 FETCH= Emulator/fetch_decode_execute.h
 BIT= bit_operations_utilities.h
 
+$(shell mkdir -p out)
+
 emulate: out/emulate.o out/processor_data_handling.o out/fetch_decode_execute.o out/bit_operations_utilities.o
 	$(CC) $(FLAGS) out/bit_operations_utilities.o out/emulate.o out/processor_data_handling.o out/fetch_decode_execute.o -o emulate
 
@@ -18,9 +20,6 @@ out/fetch_decode_execute.o : Emulator/fetch_decode_execute.c $(FETCH) $(PROC) $(
 
 out/emulate.o: Emulator/emulate.c $(PROC) $(FETCH) $(BIT) 
 	$(CC) $(FLAGS) -c Emulator/emulate.c -o out/emulate.o
-
-out/:
-	mkdir out
 
 clean:
 	rm -rf out emulate
