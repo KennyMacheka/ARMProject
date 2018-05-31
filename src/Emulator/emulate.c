@@ -51,5 +51,8 @@ int main(int argc, char **argv) {
     if (data != 0)
       printf("0x%08x: 0x%08x\n", i, data);
   }
+
+  free(processor.registers);
+  free(processor.memory);
   return EXIT_SUCCESS;
 }
