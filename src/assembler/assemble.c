@@ -62,6 +62,11 @@ int convert_to_int(char *binary) {
   return ints;
 }
 
+void numToBinChar4(int *num, char *result[]) {
+  //TODO
+
+}
+
 /* Turn a string start with '#', might be decimal(#nnn) or hexadecimal(#0xnnn)
  * (NOTE: ASSUME non-negative)
    into a string represents the corresponding 12-bit binary number which first 4 bits are in
@@ -69,7 +74,6 @@ int convert_to_int(char *binary) {
    This 12-bit number actually represents a 32-bit number which is got by represent the 8-bit number
    in 32-bit format and filling 0 in higher bits, then rotate right the 32-bit number by (4-bit number * 2)
 */
-//Q: e.g. how to represent #0x1999? Just error? however is within memory address limit
 void immToBinary(char imm[], char result[]) {
   assert(imm[0] == '#');
   uint32_t num = 0;
@@ -96,7 +100,7 @@ void immToBinary(char imm[], char result[]) {
       num += (imm[i]- '0') * (int)pow(10, bits-i);
     }
   }
-  //TODO: turn num into binary specified above
+  //Turn num into specified binary
   char biNum[33] = "";
   uint32_t mask = 1 << 31;
   for(int i = 0; i < 32; i++) {
@@ -122,11 +126,35 @@ void immToBinary(char imm[], char result[]) {
     }
   }
   int sigFigNo = lastSig - firstSig + 1;
-  if(sigFigNo > 8) {
+  if(sigFigNo > 8 ||
+      (sigFigNo == 8 && lastSig%2 == 0)) {
     fprintf(stderr, "error: cannot represent the immediate accurately");
   } else {
+    for(int i = 0; i < sigFigNo; i++) {
+      result[11-i] = biNum[lastSig + i];
+    }
+    if(sigFigNo != 8){
+      for(int i = 0; i < 8- sigFigNo; i++) {
+        result[11-sigFigNo-i] = '0';
+      }
+    }
     if(sigFigNo + 31 - lastSig <= 8) {
-      
+      result[0] = '0';//No rotation
+      result[1] = '0';
+      result[2] = '0';
+      result[3] = '0';
+    } else {
+      int rotate0 = 31 - lastSig;
+      if(rotate0 % 2 == 0) {
+        int rotate = rotate0 / 2;
+        //TODO
+
+      } else {
+        int rotate = (rotate0+1)/2;
+
+
+      }
+
     }
   }
 

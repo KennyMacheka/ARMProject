@@ -8,7 +8,7 @@ set(SOURCE_FILES
         doc/Makefile
         doc/Report.tex
         programs/gpio.s
-        src/assemble.c
+        src/assembler/assemble.c
         src/emulate.c
         src/Makefile)
 
