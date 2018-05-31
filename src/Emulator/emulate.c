@@ -27,10 +27,8 @@
 
 #define Cond 0xF0000000
 
-
 int main(int argc, char **argv) {
-  /**MEMORY IS IN LITTLE ENDIAN*/
-  // printf("object code to emulate: %s\n", argv[1]);
+  /*MEMORY IS IN LITTLE ENDIAN*/
   FILE* file = fopen(argv[1],"rb");
   assert (file != NULL);
 
@@ -44,7 +42,6 @@ int main(int argc, char **argv) {
         break;
 
     int blocksToRead = 1;
-
     uint32_t instruction;
     size_t bytesRead = fread(&instruction,BLOCK_INTERVAL,blocksToRead,file);
     if (bytesRead != blocksToRead)
@@ -62,17 +59,14 @@ int main(int argc, char **argv) {
   fclose(file);
 
   fetchDecodeExecute(&processor);
-  //printf("Number of instructions: %d\n", count);
-  //outputInstructions(&processor);
 
+  //Finished running, printing results
   printf("Registers:\n");
-  //Finished running
   for (int i = 0; i<GENERAL_REGISTERS; i++)
     printf("$%-3d: %10d (0x%08x)\n", i, processor.registers[i], processor.registers[i]);
-
   printf("PC  : %10d (0x%08x)\n", processor.registers[PC], processor.registers[PC]);
   printf("CPSR: %10d (0x%08x)\n", processor.registers[CPSR], processor.registers[CPSR]);
-
+  
   printf("Non-zero memory:\n");
   for (int i = 0; i<MEMORY_LOCATIONS; i+=BLOCK_INTERVAL){
     uint32_t  data = readMemoryLittleEndian(&processor, i);
