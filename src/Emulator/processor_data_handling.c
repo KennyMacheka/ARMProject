@@ -2,7 +2,7 @@
 #include <stdio.h>
 #include <stdint.h>
 #include "processor_data_handling.h"
-#include "bit_operations_utilities.h"
+#include "../bit_operations_utilities.h"
 /**Might remove R0-R12 if they are not needed*/
 #define R0 0
 #define R1 1

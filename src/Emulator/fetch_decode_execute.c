@@ -7,7 +7,7 @@
 #include <assert.h>
 #include "fetch_decode_execute.h"
 #include "processor_data_handling.h"
-#include "bit_operations_utilities.h"
+#include "../bit_operations_utilities.h"
 #include "result_flags.h"
 
 #define Cond 0xF0000000

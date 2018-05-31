@@ -2,7 +2,7 @@
 #include <stdio.h>
 #include <assert.h>
 #include "processor_data_handling.h"
-#include "bit_operations_utilities.h"
+#include "../bit_operations_utilities.h"
 #include "fetch_decode_execute.h"
 
 /**Might remove R0-R12 if they are not needed*/
