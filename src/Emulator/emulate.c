@@ -68,7 +68,7 @@ int main(int argc, char **argv) {
   printf("CPSR: %10d (0x%08x)\n", processor.registers[CPSR], processor.registers[CPSR]);
   
   printf("Non-zero memory:\n");
-  for (int i = 0; i<MEMORY_LOCATIONS; i+=BLOCK_INTERVAL){
+  for (int i = 0; i<MEMORY_LOCATIONS; i+=BLOCK_INTERVAL) {
     uint32_t  data = readMemoryLittleEndian(&processor, i);
     if (data != 0)
       printf("0x%08x: 0x%08x\n", i, data);
