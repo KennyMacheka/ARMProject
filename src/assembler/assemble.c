@@ -16,9 +16,6 @@
  *8. back to stage 1
  */
 
-
-
-
 //splits file into separate lines
 char **reader(char *src) {
 
@@ -248,10 +245,6 @@ char* data_process_ins_assembler(char tokenised_ins[][14], int tokenCount, int i
   }
   return result;
 }
-
-
-
-
 
 int main(int argc, char **argv) {
   return EXIT_SUCCESS;
