@@ -19,7 +19,6 @@
 
 #define HALT 0
 
-
 //Numbers correspond to binary numbers in spec
 //Used to check if an instruction should be executed
 #define eq 0x0
@@ -57,7 +56,6 @@
 //I'll need to create error flags
 uint64_t errors = 0;
 
-
 int dataProcessing(struct ARM_Processor *processor, uint32_t i, uint32_t opCode, uint32_t s,
                    uint32_t rn, uint32_t rd, uint32_t operand2);
 
@@ -69,34 +67,33 @@ int singleDataTransfer(struct ARM_Processor *processor, uint32_t i, uint32_t p, 
 
 int branch(struct ARM_Processor *processor, uint32_t offset);
 
-
-struct execute{
+struct execute {
   bool terminate;
   bool ready;
   unsigned int condition;
 
   int operation;
 
-  union execArgs{
-    struct data{
+  union execArgs {
+    struct data {
       uint32_t i;
       uint32_t opCode;
       uint32_t s;
       uint32_t rn;
       uint32_t rd;
       uint32_t operand2;
-    }dataArgs;
+    } dataArgs;
 
-    struct mult{
+    struct mult {
       uint32_t a;
       uint32_t s;
       uint32_t rd;
       uint32_t rn;
       uint32_t rs;
       uint32_t rm;
-    }multArgs;
+    } multArgs;
 
-    struct singleData{
+    struct singleData {
       uint32_t i;
       uint32_t p;
       uint32_t u;
@@ -104,24 +101,24 @@ struct execute{
       uint32_t rn;
       uint32_t rd;
       uint32_t offset;
-    }singleDataArgs;
+    } singleDataArgs;
 
-    struct brn{
+    struct brn {
       uint32_t offset;
-    }branchArgs;
+    } branchArgs;
 
-  }args;
+  } args;
 };
 
-struct decode{
+struct decode {
   bool ready;
-  uint32_t  instruction;
+  uint32_t instruction;
 };
 
-struct ARMPipeline{
+struct ARMPipeline {
   struct execute decoded;
   struct decode fetched;
-}pipeline;
+} pipeline;
 
 
 void fetchDecodeExecute(struct ARM_Processor* processor) {
@@ -133,22 +130,20 @@ void fetchDecodeExecute(struct ARM_Processor* processor) {
   pipeline.decoded.ready = false;
   pipeline.fetched.ready = false;
 
-
-  while (1){
+  while (1) {
     //Get status bits in cpsr register
     uint32_t n = isolateBits(processor->registers[CPSR], N, N, 0);
     uint32_t z = isolateBits(processor->registers[CPSR], Z, Z, 0);
     uint32_t c = isolateBits(processor->registers[CPSR], C, C, 0);
     uint32_t v = isolateBits(processor->registers[CPSR], V, V, 0);
 
-    if (pipeline.decoded.ready){
+    if (pipeline.decoded.ready) {
       //Execute decoded instruction
-
       if (pipeline.decoded.terminate)
         break;
 
       bool shouldExecute = false;
-      switch (pipeline.decoded.condition){
+      switch (pipeline.decoded.condition) {
         case eq:
           if (z == 1)
             shouldExecute = true;
@@ -182,14 +177,11 @@ void fetchDecodeExecute(struct ARM_Processor* processor) {
         case al:
           shouldExecute = true;
           break;
-
-        //HANDLE DEFAULT CASE
       }
-
 
       if (shouldExecute) {
         //No default case
-        switch (pipeline.decoded.operation){
+        switch (pipeline.decoded.operation) {
           case DATA_PROCESSING:
 
             dataProcessing(processor, pipeline.decoded.args.dataArgs.i,
@@ -227,16 +219,13 @@ void fetchDecodeExecute(struct ARM_Processor* processor) {
       pipeline.decoded.ready = false;
     }
 
-    if (pipeline.fetched.ready){
+    if (pipeline.fetched.ready) {
       //If instruction is 0 this means halt, no need to check anything else
-      if (pipeline.fetched.instruction == HALT){
+      if (pipeline.fetched.instruction == HALT) {
         pipeline.decoded.terminate = true;
         pipeline.decoded.ready = true;
         pipeline.fetched.ready = false;
-      }
-
-      else {
-
+      } else {
         pipeline.decoded.condition = isolateBits(pipeline.fetched.instruction, 31, 28, 3);
         uint32_t bit27 = isolateBits(pipeline.fetched.instruction, 27, 27, 0);
 
@@ -248,13 +237,11 @@ void fetchDecodeExecute(struct ARM_Processor* processor) {
           pipeline.decoded.args.branchArgs.offset = isolateBits(pipeline.fetched.instruction, 23, 0, 23);
           pipeline.decoded.ready = true;
           pipeline.fetched.ready = false;
-        }
-
-        else{
+        } else {
           int bit26 = isolateBits(pipeline.fetched.instruction, 26, 26, 0);
 
           //Single data transfer
-          if (bit26 == 1){
+          if (bit26 == 1) {
             //I
             pipeline.decoded.operation = SINGLE_DATA_TRANSFER;
             pipeline.decoded.args.singleDataArgs.i = isolateBits(pipeline.fetched.instruction, 25, 25 , 0);
@@ -273,10 +260,8 @@ void fetchDecodeExecute(struct ARM_Processor* processor) {
 
             pipeline.decoded.ready = true;
             pipeline.fetched.ready = false;
-          }
-
-          //data processing or multiply
-          else{
+          } else {
+            //data processing or multiply            
             bool isDataProcessing = false;
             bool isMultiply = false;
 
@@ -285,12 +270,10 @@ void fetchDecodeExecute(struct ARM_Processor* processor) {
             uint32_t  r2 = isolateBits(pipeline.fetched.instruction,15,12,3);
 
             //Check bit 25 is 1
-            if (isolateBits(pipeline.fetched.instruction,25,25,0) == 1){
+            if (isolateBits(pipeline.fetched.instruction,25,25,0) == 1) {
               isDataProcessing = true;
               isMultiply = false;
-            }
-
-            else {
+            } else {
               //Assume instruction is data processing
               //Take bits 24-22 inclusive. If != 0, then instruction is not multiply
               if (isolateBits(pipeline.fetched.instruction, 24, 22, 2) != 0) {
@@ -305,19 +288,16 @@ void fetchDecodeExecute(struct ARM_Processor* processor) {
                 if (fourBits != multiplySpecialValue) {
                   isDataProcessing = true;
                   isMultiply = false;
-                }
-
+                } else {
                   //Must be multiplying (this is not possible for data procesing)
                   //I say invalid for data processing according to p. 7 of spec, where bit 7 is 0 not 1
-                else {
                   isDataProcessing = false;
                   isMultiply = true;
-
                 }
               }
             }
 
-            if (isDataProcessing){
+            if (isDataProcessing) {
               pipeline.decoded.operation = DATA_PROCESSING;
 
               //I
@@ -334,10 +314,7 @@ void fetchDecodeExecute(struct ARM_Processor* processor) {
               pipeline.decoded.args.dataArgs.operand2 = isolateBits(pipeline.fetched.instruction,11,0,11);
               pipeline.decoded.ready = true;
               pipeline.fetched.ready = false;
-            }
-
-            //multiply
-            else if (isMultiply){
+            } else if (isMultiply) {
               pipeline.decoded.operation = MULTIPLY;
 
               //A
@@ -359,7 +336,6 @@ void fetchDecodeExecute(struct ARM_Processor* processor) {
 
               pipeline.decoded.ready = true;
               pipeline.fetched.ready = false;
-
             }
           }
         }
@@ -370,11 +346,9 @@ void fetchDecodeExecute(struct ARM_Processor* processor) {
     pipeline.fetched.ready = true;
     processor->registers[PC] += BLOCK_INTERVAL;
   }
-
-
 }
 
-void compute12BitOperand (struct ARM_Processor *processor, uint32_t *operand, uint32_t *carryOut){
+void compute12BitOperand (struct ARM_Processor *processor, uint32_t *operand, uint32_t *carryOut) {
   assert (operand != NULL);
   uint32_t shift = isolateBits(*operand,11,4,7);
   uint32_t rm = isolateBits(*operand,3,0,3);
@@ -382,36 +356,28 @@ void compute12BitOperand (struct ARM_Processor *processor, uint32_t *operand, ui
   int amountToShift;
   uint32_t carry = 0;
 
-  if (isolateBits(*operand,4,4,0) == 0){
+  if (isolateBits(*operand,4,4,0) == 0) {
     amountToShift = isolateBits(*operand,11,7,4);
-  }
-
-  else{
+  } else {
     uint32_t rs = isolateBits(*operand,11,8,3);
     amountToShift = isolateBits(processor->registers[rs],7,0,7);
   }
 
   //No need to shift anything
-  if (amountToShift == 0){
+  if (amountToShift == 0) {
     *operand = processor->registers[rm];
-  }
-
+  } else if (shiftType == LSL) {
     //Logical left
-  else if (shiftType == LSL){
     *operand = processor->registers[rm] << amountToShift;
     //We want to get LSB of bits that are discarded in left shift
     //This will be the carry out
     carry = isolateBits(processor->registers[rm], 32-amountToShift, 32-amountToShift,0);
-  }
-
+  } else if (shiftType == LSR) {
     //Logical right
-  else if (shiftType == LSR){
     *operand= processor->registers[rm] >> amountToShift;
     carry = isolateBits(processor->registers[rm], amountToShift-1, amountToShift-1,0);
-  }
-
+  } else if (shiftType == ASR) {
     //Arithmetic right
-  else if (shiftType == ASR){
     //We'll either have 10000000000000000..00 or 000.00000
     uint32_t sign = isolateBits(processor->registers[rm], 31, 31, 31);
     carry = isolateBits(processor->registers[rm], amountToShift-1, amountToShift-1,0);
@@ -420,10 +386,8 @@ void compute12BitOperand (struct ARM_Processor *processor, uint32_t *operand, ui
     //Preserve the sign of the MSB (i.e. if MSB is 1, any new zeros are converted to 1s)
     for (int i = 0; i<amountToShift; i++, sign >>= 1)
       *operand |= sign;
-  }
-
+  } else if (shiftType == ROR) {
     //Rotate right
-  else if (shiftType == ROR){
     *operand = rotateRight(processor->registers[rm], amountToShift);
     carry = isolateBits(processor->registers[rm], amountToShift-1, amountToShift-1, 0);
   }
@@ -440,13 +404,11 @@ int dataProcessing (struct ARM_Processor *processor, uint32_t i, uint32_t opCode
   uint32_t  rnContents = processor->registers[rn];
 
   //Immediate value
-  if (i == 1){
+  if (i == 1) {
     uint32_t rotateAmount = isolateBits(operand2,11,8,3)*2;
     operand2 = rotateRight(isolateBits(operand2,7,0,7), rotateAmount);
     carryOut = isolateBits(operand2, rotateAmount-1, rotateAmount-1, 0);
-  }
-
-  else{
+  } else {
     compute12BitOperand(processor, &operand2, &carryOut);
 
   }
@@ -457,11 +419,11 @@ int dataProcessing (struct ARM_Processor *processor, uint32_t i, uint32_t opCode
     result = rnContents & operand2;
   }
 
-  else if (opCode == EOR || opCode == TEQ){
+  else if (opCode == EOR || opCode == TEQ) {
     result = rnContents ^ operand2;
   }
 
-  else if (opCode == SUB || opCode == CMP){
+  else if (opCode == SUB || opCode == CMP) {
     result = rnContents - operand2;
 
     //Produced a borrow
@@ -472,7 +434,7 @@ int dataProcessing (struct ARM_Processor *processor, uint32_t i, uint32_t opCode
       carryOut = 1;
   }
 
-  else if (opCode == ADD){
+  else if (opCode == ADD) {
     result = rnContents + operand2;
 
     //Overflow
@@ -482,12 +444,11 @@ int dataProcessing (struct ARM_Processor *processor, uint32_t i, uint32_t opCode
       carryOut = 0;
   }
 
-  else if (opCode == RSB){
+  else if (opCode == RSB) {
     result = operand2 - rnContents;
 
     if (result > operand2)
       carryOut = 0;
-
     else
       carryOut = 1;
   }
@@ -506,7 +467,7 @@ int dataProcessing (struct ARM_Processor *processor, uint32_t i, uint32_t opCode
   if (!(opCode == TST || opCode == TEQ || opCode == CMP))
     processor->registers[rd] = result;
 
-  if (s == 1){
+  if (s == 1) {
       setBit(&processor->registers[CPSR], C, carryOut);
 
       if (result == 0)
@@ -591,7 +552,7 @@ int branch(struct ARM_Processor *processor, uint32_t offset) {
       As this is general, this can be applied to any number using any number of bits*/
 
   //Check if negative number
-  if (isolateBits(offset, 23, 23, 0) == 1){
+  if (isolateBits(offset, 23, 23, 0) == 1) {
     for (uint32_t i = 31; i >= 24; i--)
       setBit(&offset, i, 1);
   }
