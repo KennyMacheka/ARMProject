@@ -7,6 +7,9 @@
 #define GPIO_LOCATION_1 0x20200000
 #define GPIO_LOCATION_2 0x20200004
 #define GPIO_LOCATION_3 0x20200008
+#define GPIO_LOCATION_1_2 0x00000000
+#define GPIO_LOCATION_2_2 0x00000004
+#define GPIO_LOCATION_3_2 0x00000008
 
 const int WORD_SIZE = 32;
 const int REGISTERS = 17;
@@ -14,15 +17,17 @@ const int BLOCK_INTERVAL = 4;
 const int GENERAL_REGISTERS = 13;
 
 //65536 bytes in main memory. Word length is 4 bytes, so divide that by 4
-const int MEMORY_LOCATIONS = 65548;
+const int MEMORY_LOCATIONS = 65536;
 const int SP = 13;
 const int LP = 14;
 const int PC = 15;
 const int CPSR = 16;
 
+const int GPIO_LOCATIONS = 12;
+
 void initialiseProcessor(struct ARM_Processor* processor) {
 
-  processor->memory = calloc(MEMORY_LOCATIONS,sizeof(uint8_t));
+  processor->memory = calloc(MEMORY_LOCATIONS+GPIO_LOCATIONS,sizeof(uint8_t));
   processor->registers = calloc(REGISTERS, sizeof(uint32_t));
 
   for (int i = 0; i<MEMORY_LOCATIONS; i++) {
@@ -64,7 +69,14 @@ uint32_t readMemory(struct ARM_Processor *processor, int location) {
    */
   if (location <= GPIO_LOCATION_3) {
     if (location >= GPIO_LOCATION_1) {
-      return readMemory(processor, transformGPIOLoc(location));
+      switch (location) {
+        case GPIO_LOCATION_1:
+          return readMemory(processor, GPIO_LOCATION_1_2 + MEMORY_LOCATIONS);
+        case GPIO_LOCATION_2:
+          return readMemory(processor, GPIO_LOCATION_2_2 + MEMORY_LOCATIONS);
+        case GPIO_LOCATION_3:
+          return readMemory(processor, GPIO_LOCATION_3_2 + MEMORY_LOCATIONS);
+      }
     } else if (location < MEMORY_LOCATIONS) {
       uint32_t result = 0;
       uint8_t shiftAmount = 0;
@@ -96,7 +108,14 @@ void writeToMemory(struct ARM_Processor *processor, uint32_t data, int location)
   
   if (location <= GPIO_LOCATION_3) {
     if (location >= GPIO_LOCATION_1) {
-      return writeToMemory(processor, data, transformGPIOLoc(location));
+      switch (location) {
+        case GPIO_LOCATION_1:
+          return writeToMemory(processor, data, GPIO_LOCATION_1_2 + MEMORY_LOCATIONS);
+        case GPIO_LOCATION_2:
+          return writeToMemory(processor, data, GPIO_LOCATION_2_2 + MEMORY_LOCATIONS);
+        case GPIO_LOCATION_3:
+          return writeToMemory(processor, data, GPIO_LOCATION_3_2 + MEMORY_LOCATIONS);
+      }
     } else if (location < MEMORY_LOCATIONS) {
       int start = 0;
       int end = 7;
