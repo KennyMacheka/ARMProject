@@ -5,28 +5,6 @@
 #include "bit_operations_utilities.h"
 #include "fetch_decode_execute.h"
 
-/**Might remove R0-R12 if they are not needed*/
-#define R0 0
-#define R1 1
-#define R2 2
-#define R3 3
-#define R4 4
-#define R5 5
-#define R6 6
-#define R7 7
-#define R8 8
-#define R9 9
-#define R10 10
-#define R11 11
-#define R12 12
-
-#define N 0x80000000
-#define Z 0x40000000
-#define C 0X20000000
-#define V 0x10000000
-
-#define Cond 0xF0000000
-
 int main(int argc, char **argv) {
   /*MEMORY IS IN LITTLE ENDIAN*/
   FILE* file = fopen(argv[1],"rb");
