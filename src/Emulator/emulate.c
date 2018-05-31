@@ -5,32 +5,8 @@
 #include "../bit_operations_utilities.h"
 #include "fetch_decode_execute.h"
 
-/**Might remove R0-R12 if they are not needed*/
-#define R0 0
-#define R1 1
-#define R2 2
-#define R3 3
-#define R4 4
-#define R5 5
-#define R6 6
-#define R7 7
-#define R8 8
-#define R9 9
-#define R10 10
-#define R11 11
-#define R12 12
-
-#define N 0x80000000
-#define Z 0x40000000
-#define C 0X20000000
-#define V 0x10000000
-
-#define Cond 0xF0000000
-
-
 int main(int argc, char **argv) {
-  /**MEMORY IS IN LITTLE ENDIAN*/
-  // printf("object code to emulate: %s\n", argv[1]);
+  /*MEMORY IS IN LITTLE ENDIAN*/
   FILE* file = fopen(argv[1],"rb");
   assert (file != NULL);
 
@@ -44,7 +20,6 @@ int main(int argc, char **argv) {
         break;
 
     int blocksToRead = 1;
-
     uint32_t instruction;
     size_t bytesRead = fread(&instruction,BLOCK_INTERVAL,blocksToRead,file);
     if (bytesRead != blocksToRead)
@@ -62,19 +37,16 @@ int main(int argc, char **argv) {
   fclose(file);
 
   fetchDecodeExecute(&processor);
-  //printf("Number of instructions: %d\n", count);
-  //outputInstructions(&processor);
 
+  //Finished running, printing results
   printf("Registers:\n");
-  //Finished running
   for (int i = 0; i<GENERAL_REGISTERS; i++)
     printf("$%-3d: %10d (0x%08x)\n", i, processor.registers[i], processor.registers[i]);
-
   printf("PC  : %10d (0x%08x)\n", processor.registers[PC], processor.registers[PC]);
   printf("CPSR: %10d (0x%08x)\n", processor.registers[CPSR], processor.registers[CPSR]);
-
+  
   printf("Non-zero memory:\n");
-  for (int i = 0; i<MEMORY_LOCATIONS; i+=BLOCK_INTERVAL){
+  for (int i = 0; i<MEMORY_LOCATIONS; i+=BLOCK_INTERVAL) {
     uint32_t  data = readMemoryLittleEndian(&processor, i);
     if (data != 0)
       printf("0x%08x: 0x%08x\n", i, data);
