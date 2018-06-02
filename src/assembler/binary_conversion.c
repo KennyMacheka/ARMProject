@@ -5,6 +5,7 @@
 #include <string.h>
 #include <math.h>
 
+/*
 int convert_to_int(char *binary) {
   int ints[sizeof(binary)/ 32];
 
@@ -17,8 +18,9 @@ int convert_to_int(char *binary) {
   }
   return ints;
 }
+ */
 
-void numToBinChar4(int *num, char *result[]) {
+void numToBinChar4(uint16_t num, char result[]) {
   uint16_t mask = 1 << 3;
   for(int i = 0; i < 4; i++) {
     if((num & mask) == 0) {
@@ -109,10 +111,10 @@ void immToBinary(char imm[], char result[]) {
     } else {
       int rotate0 = 31 - lastSig;
       if(rotate0 % 2 == 0) {
-        int rotate = rotate0 / 2;
+        uint16_t rotate = rotate0 / 2;
         numToBinChar4(rotate, result);
       } else {
-        int rotate = (rotate0+1)/2;
+        uint16_t rotate = (rotate0+1)/2;
         numToBinChar4(rotate, result);
         for(int i = 4; i < 11; i++) {
           result[i] = result[i+1];
@@ -192,7 +194,9 @@ char* data_process_ins_assembler(char tokenised_ins[][14], int tokenCount, int i
       }
       //} //else shifted register(optional)
     case 4://eor
-      
+      assert(tokenCount == 3);
+
+
     case 1://sub
     case 2://rsb
     case 0://add

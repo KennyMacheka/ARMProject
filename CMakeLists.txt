@@ -9,7 +9,7 @@ set(SOURCE_FILES
         doc/Report.tex
         programs/gpio.s
         src/assembler/assemble.c
-        src/emulate.c
+        src/Emulator/emulate.c
         src/Makefile src/assembler/file_processing.c src/assembler/binary_conversion.c src/assembler/first_pass.c)
 
 add_executable(arm11_35 ${SOURCE_FILES})
