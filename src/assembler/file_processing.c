@@ -7,14 +7,30 @@
 #include <stdlib.h>
 
 #define MAX_FILE_LENGTH 7
-#define MAX_LINE_LENGTH 10
+#define MAX_LINE_LENGTH 511
 
 
+ 
+/*
+ * 1) Reader : File -> Line arrays : DONE
+ * 2) Tokeniser : Line Arrays : Split operands
+ *
 
 /*
- * 1) Reader : File -> Line arrays
- * 2) Tokeniser : Line Arrays : Split operands
- */
+** Receives input from reader and splits each instruciton into 
+** each part of the instruction by splitting at whitespace 
+** Also removes ',' comma character between two registers
+** 
+*/
+char ***tokeniser(char ** lines){
+    //pre: lines is output from reader
+    //post: no whitespace, no commas
+
+char ***tokens = malloc(MAX_FILE_LENGTH * sizeof(char**));
+for(int i = 0; i < MAX_FILE_LENGTH; i++){
+
+}
+
 
 /* reads the input file and separates each instruction
 ** into an array
@@ -26,7 +42,7 @@ void reader(char *src) {
   printf("test");
 
   char **lines;
-  lines = malloc(MAX_FILE_LENGTH * sizeof(char));
+  lines = malloc(MAX_FILE_LENGTH * sizeof(char *));
   for(int i = 0; i < MAX_FILE_LENGTH; i++){
       lines[i] = malloc(MAX_LINE_LENGTH * sizeof(char));
   }
@@ -42,17 +58,18 @@ void reader(char *src) {
   //tokeniser(lines);
   
 }
+
+
+
+
 /*
-char ***tokeniser(char ** lines){
-
-//char ***tokens = malloc()
-
-}
+**writes binary represenation to binary file
+**will need to convert each 32 character string into a binary int
+**and then write that to the file
+**binary writer is little endian
 */
 
-
 /*
-//writes binary represenation to binary file
 void writer(char *binary, char *dest) {
     
   FILE *file;
@@ -66,6 +83,8 @@ void writer(char *binary, char *dest) {
 
 }
 */
+
+
 int main(int argc, char **argv)
 {
     /* code */

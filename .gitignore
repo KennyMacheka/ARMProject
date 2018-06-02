@@ -1,5 +1,5 @@
 #This the the canonical lab .gitignore file
-
+.idea
 CMakeLists.txt
 
 #ignore test dir
