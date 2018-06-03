@@ -4,7 +4,7 @@
 #include <stdint.h>
 #include <string.h>
 #include <math.h>
-
+#include "file_handling.h"
 /*
  *1. read line store in string
  *2. add labels to symbol table
@@ -16,37 +16,23 @@
  *8. back to stage 1
  */
 
-//splits file into separate lines
-char **reader(char *src) {
 
-  FILE *file;
-  file = fopen(src, "r");
-
-  char **lines;
-  int x = 0;
-
-  if (file) {
-    while (!feof(file)) {
-      lines[x] = (char *) fgetc(file);
-    }
-  }
-
-  fclose(file);
-  return lines;
-}
-
-//writes binary represenation to binary file
-void writer(char *binary, char *dest) {
-  FILE *file;
-  file = fopen(dest, "wb");
-  int bin = convert_to_int(binary);
-  if (file != NULL) {
-    fwrite(bin, sizeof(int), 1, file);
-  }
-
-  fclose(file);
-}
 
 int main(int argc, char **argv) {
+
+  if (argc < 3){
+    printf("Invalid file names.\n");
+    return EXIT_FAILURE;
+  }
+
+  FILE* file = fopen(argv[1],"r");
+  if (file == NULL){
+    printf("Invalid file input.\n");
+    return EXIT_FAILURE;
+  }
+
+  struct assemblyCode *input = readFile(file);
+  fclose(file);
+
   return EXIT_SUCCESS;
 }
