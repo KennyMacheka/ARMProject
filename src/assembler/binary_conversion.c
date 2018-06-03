@@ -5,6 +5,7 @@
 #include <string.h>
 #include <math.h>
 
+/*
 int convert_to_int(char *binary) {
   int ints[sizeof(binary)/ 32];
 
@@ -17,8 +18,9 @@ int convert_to_int(char *binary) {
   }
   return ints;
 }
+ */
 
-void numToBinChar4(int *num, char *result[]) {
+void numToBinChar4(uint16_t num, char result[]) {
   uint16_t mask = 1 << 3;
   for(int i = 0; i < 4; i++) {
     if((num & mask) == 0) {
@@ -109,10 +111,10 @@ void immToBinary(char imm[], char result[]) {
     } else {
       int rotate0 = 31 - lastSig;
       if(rotate0 % 2 == 0) {
-        int rotate = rotate0 / 2;
+        uint16_t rotate = rotate0 / 2;
         numToBinChar4(rotate, result);
       } else {
-        int rotate = (rotate0+1)/2;
+        uint16_t rotate = (rotate0+1)/2;
         numToBinChar4(rotate, result);
         for(int i = 4; i < 11; i++) {
           result[i] = result[i+1];
@@ -149,12 +151,33 @@ int isImm(char token[]){
   return 0;
 }
 
+void dataProcess4tokenInit(char tokenised_ins[][14], char result[]) {
+  result[6] = (char) ((int) '0' + isImm(tokenised_ins[3])); //I
+  result[11] = '0'; //S
+  regNumToBinary(tokenised_ins[2], &result[12]);//Rn
+  regNumToBinary(tokenised_ins[1], &result[16]);//Rd
+  //if(result[6]){
+  immToBinary(tokenised_ins[3], &result[20]);
+  //} //else shifted register(optional)
+}
+
+void dataProcessCPSRInit(char tokenised_ins[][14], char result[]) {
+  result[6] = (char) ((int) '0' + isImm(tokenised_ins[2])); //I
+  result[11] = '1'; //S
+  regNumToBinary(tokenised_ins[1], &result[12]);//Rn
+  result[16] = '0';//Rd
+  result[17] = '0';
+  result[18] = '0';
+  result[19] = '0';
+  //if(result[6]){
+  immToBinary(tokenised_ins[3], &result[20]);
+  //} //else shifted register(optional)
+}
 
 /* Input is a tokenised instruction with instruction number given(see doc/instructionNum)
  * Output is a string contains '0' and '1' represents required binary number
  * */
 //TODO:remember to free result in the caller
-//TODO:把相似部分拿出来，以优化switch,减少重复
 char* data_process_ins_assembler(char tokenised_ins[][14], int tokenCount, int insNum) {
   char *result = calloc(33, sizeof(char));
   result[0] = '1';//cond
@@ -166,42 +189,103 @@ char* data_process_ins_assembler(char tokenised_ins[][14], int tokenCount, int i
   switch (insNum) {
     case 3://and
       assert(tokenCount == 4);
-      result[6] = (char) ((int) '0' + isImm(tokenised_ins[3])); //I
+      dataProcess4tokenInit(tokenised_ins, result);
       result[7] = '0';//Opcodes
       result[8] = '0';
       result[9] = '0';
       result[10] = '0';
-      result[11] = '0'; //S
-      char biRnNo[5] = "";
-      regNumToBinary(tokenised_ins[2], biRnNo);
-      result[12] = biRnNo[0];//Rn
-      result[13] = biRnNo[1];
-      result[14] = biRnNo[2];
-      result[15] = biRnNo[3];
-      char biRdNo[5] = "";
-      regNumToBinary(tokenised_ins[1], biRdNo);
-      result[16] = biRdNo[0];//Rd
-      result[17] = biRdNo[1];
-      result[18] = biRdNo[2];
-      result[19] = biRdNo[3];
-      char biOp2No[13] = "";
-      //if(result[6]){
-      immToBinary(tokenised_ins[3], biOp2No);
-      for(int i = 0; i < 12; i++) {
-        result[20+i] = biOp2No[i];
-      }
-      //} //else shifted register(optional)
+      break;
     case 4://eor
-      
+      assert(tokenCount == 4);
+      dataProcess4tokenInit(tokenised_ins, result);
+      result[7] = '0';//Opcodes
+      result[8] = '0';
+      result[9] = '0';
+      result[10] = '1';
+      break;
     case 1://sub
+      assert(tokenCount == 4);
+      dataProcess4tokenInit(tokenised_ins, result);
+      result[7] = '0';//Opcodes
+      result[8] = '0';
+      result[9] = '1';
+      result[10] = '0';
+      break;
     case 2://rsb
+      assert(tokenCount == 4);
+      dataProcess4tokenInit(tokenised_ins, result);
+      result[7] = '0';//Opcodes
+      result[8] = '0';
+      result[9] = '1';
+      result[10] = '1';
+      break;
     case 0://add
+      assert(tokenCount == 4);
+      dataProcess4tokenInit(tokenised_ins, result);
+      result[7] = '0';//Opcodes
+      result[8] = '1';
+      result[9] = '0';
+      result[10] = '0';
+      break;
     case 5://orr
+      assert(tokenCount == 4);
+      dataProcess4tokenInit(tokenised_ins, result);
+      result[7] = '1';//Opcodes
+      result[8] = '1';
+      result[9] = '0';
+      result[10] = '0';
+      break;
     case 6://mov
+      assert(tokenCount == 3);
+      result[6] = (char) ((int) '0' + isImm(tokenised_ins[2])); //I
+      result[7] = '1';//Opcodes
+      result[8] = '1';
+      result[9] = '0';
+      result[10] = '1';
+      result[11] = '0'; //S
+      result[12] = '0';//Rn which is undefined
+      result[13] = '0';
+      result[14] = '0';
+      result[15] = '0';
+      regNumToBinary(tokenised_ins[1], &result[16]);//Rd
+      //if(result[6]){
+      immToBinary(tokenised_ins[2], &result[20]);
+      //} //else shifted register(optional)
+      break;
     case 7://tst
+      assert(tokenCount == 3);
+      dataProcessCPSRInit(tokenised_ins, result);
+      result[7] = '1';//Opcodes
+      result[8] = '0';
+      result[9] = '0';
+      result[10] = '0';
+      break;
     case 8://teq
+      assert(tokenCount == 3);
+      dataProcessCPSRInit(tokenised_ins, result);
+      result[7] = '1';//Opcodes
+      result[8] = '0';
+      result[9] = '0';
+      result[10] = '1';
+      break;
     case 9://cmp
+      assert(tokenCount == 3);
+      dataProcessCPSRInit(tokenised_ins, result);
+      result[7] = '1';//Opcodes
+      result[8] = '0';
+      result[9] = '1';
+      result[10] = '0';
+      break;
     default: fprintf(stderr, "Invalid data processing instruction.\n"); //what should return?
   }
   return result;
+}
+
+/* Input is a tokenised instruction with instruction number given(see doc/instructionNum)
+* Output is a string contains '0' and '1' represents required binary number
+* */
+//TODO:remember to free result in the caller
+char* multiply_ins_assembler(char tokenised_ins[][4], int tokenCount, int insNum) {
+
+
 }

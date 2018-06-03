@@ -1,4 +1,5 @@
 
+
 cmake_minimum_required(VERSION 3.10)
 project(arm11_35)
 
@@ -23,5 +24,6 @@ add_executable(Assembler
                src/assembler/symbol_table.c
                src/Utilities/bit_operations_utilities.c
                src/Utilities/bit_operations_utilities.h)
+
 
 

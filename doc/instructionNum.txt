@@ -8,16 +8,20 @@ mov 6
 tst 7
 teq 8
 cmp 9
+
 mul 10
 mla 11
+
 ldr 12
 str 13
+
 beq 14
 bne 15
 bge 16
 blt 17
 bgt 18
 ble 19
-b 20
-lsl 21
+b   20
+
+lsl   21
 andeq 22
