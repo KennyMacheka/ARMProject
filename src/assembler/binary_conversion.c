@@ -5,6 +5,10 @@
 #include <string.h>
 #include <math.h>
 
+#define MAX_DP_TOKEN_LENGTH 14
+#define MAX_MUL_TOKEN_LENGTH 4
+#define MAX_SDT_TOKEN_LENGTH 20
+
 /*
 int convert_to_int(char *binary) {
   int ints[sizeof(binary)/ 32];
@@ -151,7 +155,7 @@ int isImm(char token[]){
   return 0;
 }
 
-void dataProcess4tokenInit(char tokenised_ins[][14], char result[]) {
+void dataProcess4tokenInit(char tokenised_ins[][MAX_DP_TOKEN_LENGTH], char result[]) {
   result[6] = (char) ((int) '0' + isImm(tokenised_ins[3])); //I
   result[11] = '0'; //S
   regNumToBinary(tokenised_ins[2], &result[12]);//Rn
@@ -161,7 +165,7 @@ void dataProcess4tokenInit(char tokenised_ins[][14], char result[]) {
   //} //else shifted register(optional)
 }
 
-void dataProcessCPSRInit(char tokenised_ins[][14], char result[]) {
+void dataProcessCPSRInit(char tokenised_ins[][MAX_DP_TOKEN_LENGTH], char result[]) {
   result[6] = (char) ((int) '0' + isImm(tokenised_ins[2])); //I
   result[11] = '1'; //S
   regNumToBinary(tokenised_ins[1], &result[12]);//Rn
@@ -178,7 +182,7 @@ void dataProcessCPSRInit(char tokenised_ins[][14], char result[]) {
  * Output is a string contains '0' and '1' represents required binary number
  * */
 //TODO:remember to free result in the caller
-char* data_process_ins_assembler(char tokenised_ins[][14], int tokenCount, int insNum) {
+char* data_process_ins_assembler(char tokenised_ins[][MAX_DP_TOKEN_LENGTH], int tokenCount, int insNum) {
   char *result = calloc(33, sizeof(char));
   result[0] = '1';//cond
   result[1] = '1';
@@ -281,11 +285,55 @@ char* data_process_ins_assembler(char tokenised_ins[][14], int tokenCount, int i
   return result;
 }
 
+void mulInsInit(char tokenised_ins[][MAX_MUL_TOKEN_LENGTH], char result[]) {
+  regNumToBinary(tokenised_ins[1], &result[12]);//Rd
+  regNumToBinary(tokenised_ins[2], &result[28]);//Rm
+  regNumToBinary(tokenised_ins[3], &result[20]);//Rs
+}
+
 /* Input is a tokenised instruction with instruction number given(see doc/instructionNum)
 * Output is a string contains '0' and '1' represents required binary number
 * */
 //TODO:remember to free result in the caller
-char* multiply_ins_assembler(char tokenised_ins[][4], int tokenCount, int insNum) {
+char* multiply_ins_assembler(char tokenised_ins[][MAX_MUL_TOKEN_LENGTH], int tokenCount, int insNum) {
+  char *result = calloc(33, sizeof(char));
+  result[0] = '1';//cond
+  result[1] = '1';
+  result[2] = '1';
+  result[3] = '0';
+  for(int i = 0; i < 6; i++) {//000000
+    result[4+i] = '0';
+  }
+  result[11] = '0'; //S
+  result[24] = '1';//1001
+  result[25] = '0';
+  result[26] = '0';
+  result[27] = '1';
+  if(insNum == 10) { //mul
+    assert(tokenCount == 4);
+    mulInsInit(tokenised_ins, result);
+    result[10] = '0'; //A
+    result[16] = '0'; //Rn which is undefined
+    result[17] = '0';
+    result[18] = '0';
+    result[19] = '0';
+  } else if(insNum == 11) {//mla
+    assert(tokenCount == 5);
+    mulInsInit(tokenised_ins, result);
+    result[10] = '1'; //A
+    regNumToBinary(tokenised_ins[4], &result[16]);//Rn
+  } else {
+    fprintf(stderr, "Invalid multiply instruction.\n");//return?
+  }
+  return result;
+}
 
+/* Input is a tokenised instruction with instruction number given(see doc/instructionNum)
+* Output is a string contains '0' and '1' represents required binary number
+* */
+//TODO:remember to free result in the caller
+char* single_data_transfer_ins_assembler(char tokenised_ins[][MAX_SDT_TOKEN_LENGTH], int tokenCount, int insNum) {
+  char *result = calloc(33, sizeof(char));
 
+  return result;
 }
