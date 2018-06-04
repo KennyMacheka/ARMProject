@@ -17,7 +17,6 @@
  */
 
 
-
 int main(int argc, char **argv) {
 
   if (argc < 3){
@@ -33,6 +32,8 @@ int main(int argc, char **argv) {
 
   struct assemblyCode *input = readFile(file);
   fclose(file);
+
+
 
   return EXIT_SUCCESS;
 }

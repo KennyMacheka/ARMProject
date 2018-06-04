@@ -26,40 +26,12 @@ char ***tokeniser(char ** lines){
     //pre: lines is output from reader
     //post: no whitespace, no commas
 
-char ***tokens = malloc(MAX_FILE_LENGTH * sizeof(char**));
-for(int i = 0; i < MAX_FILE_LENGTH; i++){
-
-}
-
-
-/* reads the input file and separates each instruction
-** into an array
-*/
-void reader(char *src) {
-
-  FILE *file;
-  file = fopen(src, "r");
-  printf("test");
-
-  char **lines;
-  lines = malloc(MAX_FILE_LENGTH * sizeof(char *));
+  char ***tokens = malloc(MAX_FILE_LENGTH * sizeof(char**));
   for(int i = 0; i < MAX_FILE_LENGTH; i++){
-      lines[i] = malloc(MAX_LINE_LENGTH * sizeof(char));
+
   }
 
-  int x = 0;
-  if(file != NULL){
-      fscanf(file, "%[^n]", lines[x]);
-      //printf("%s", lines[x]);
-      x++;
-  }
-
-  fclose(file);
-  //tokeniser(lines);
-  
 }
-
-
 
 
 /*
@@ -84,10 +56,3 @@ void writer(char *binary, char *dest) {
 }
 */
 
-
-int main(int argc, char **argv)
-{
-    /* code */
-    reader(argv[1]);
-    return 0;
-}

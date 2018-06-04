@@ -13,6 +13,7 @@ const int MAX_CHARS = 512;
 
 //NOTE:
 //If needed, can add error if line exceeds 511 by checking variable size (i.e. size>MAX_CHARS)
+//We can check for this in main by returning NULL
 struct assemblyCode *readFile(FILE* file) {
   if (file == NULL)
     return NULL;
