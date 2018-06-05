@@ -47,6 +47,16 @@ void outputCode (struct assemblyCode* input){
     printf("%s\n", input->code[i]);
 }
 
+void freeCode(struct assemblyCode **code){
+
+  for (int i = 0; i<(*code)->numLines; i++)
+    free((*code)->code[i]);
+
+  free((*code)->code);
+  free(*code);
+  *code = NULL;
+}
+
 /*
 
 //writes binary represenation to binary file

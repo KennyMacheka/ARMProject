@@ -5,19 +5,35 @@
 #ifndef ARM11_35_SYMBOL_TABLE_H
 #define ARM11_35_SYMBOL_TABLE_H
 
+#include <stddef.h>
+#include "file_handling.h"
+
+
 struct symbolTable{
   int* addresses;
   char **label;
   int size;
 };
 
+struct tokenedInstruction{
+  char **line;
+  size_t numTokens;
+};
+
 struct tokenedCode{
-  char **tokens;
-  int numTokens;
+  struct tokenedInstruction *code;
+  size_t numLines;
 };
 
 
-void setupTable (struct symbolTable*);
+struct symbolTable *setupTable();
 void insert(struct symbolTable *, int , char *);
+int get(struct symbolTable *, char *);
+void tokenInstruction (char *, struct tokenedInstruction *);
+struct tokenedCode *setupTokens(struct assemblyCode *);
+void freeTokenedCode (struct tokenedCode **);
+void freeTokenedInstruction(struct tokenedInstruction * );
+void printTokens (struct tokenedCode*);
+
 
 #endif //ARM11_35_SYMBOL_TABLE_H
