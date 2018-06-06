@@ -4,25 +4,10 @@
 #include <stdint.h>
 #include <string.h>
 #include <math.h>
+#include "binary_conversion.h"
 
-#define MAX_DP_TOKEN_LENGTH 14
-#define MAX_MUL_TOKEN_LENGTH 4
-#define MAX_SDT_TOKEN_LENGTH 20
 
-/*
-int convert_to_int(char *binary) {
-  int ints[sizeof(binary)/ 32];
 
-  for (int i = 0; i < sizeof(binary) / 32; i++) {
-    char word[32];
-    for (int j = 0; j < 32; j++) {
-      word[j] = binary[j + i * 32];
-    }
-    ints[i] = strtol(word, NULL, 2);
-  }
-  return ints;
-}
- */
 
 void numToBinChar4(uint16_t num, char result[]) {
   uint16_t mask = 1 << 3;
@@ -155,7 +140,7 @@ int isImm(char token[]){
   return 0;
 }
 
-void dataProcess4tokenInit(char tokenised_ins[][MAX_DP_TOKEN_LENGTH], char result[]) {
+void dataProcess4tokenInit(char **tokenised_ins, char result[]) {
   result[6] = (char) ((int) '0' + isImm(tokenised_ins[3])); //I
   result[11] = '0'; //S
   regNumToBinary(tokenised_ins[2], &result[12]);//Rn
@@ -165,7 +150,7 @@ void dataProcess4tokenInit(char tokenised_ins[][MAX_DP_TOKEN_LENGTH], char resul
   //} //else shifted register(optional)
 }
 
-void dataProcessCPSRInit(char tokenised_ins[][MAX_DP_TOKEN_LENGTH], char result[]) {
+void dataProcessCPSRInit(char **tokenised_ins, char result[]) {
   result[6] = (char) ((int) '0' + isImm(tokenised_ins[2])); //I
   result[11] = '1'; //S
   regNumToBinary(tokenised_ins[1], &result[12]);//Rn
@@ -182,7 +167,7 @@ void dataProcessCPSRInit(char tokenised_ins[][MAX_DP_TOKEN_LENGTH], char result[
  * Output is a string contains '0' and '1' represents required binary number
  * */
 //TODO:remember to free result in the caller
-char* data_process_ins_assembler(char tokenised_ins[][MAX_DP_TOKEN_LENGTH], int tokenCount, int insNum) {
+char* data_process_ins_assembler(char **tokenised_ins, int tokenCount, int insNum) {
   char *result = calloc(33, sizeof(char));
   result[0] = '1';//cond
   result[1] = '1';
@@ -285,7 +270,7 @@ char* data_process_ins_assembler(char tokenised_ins[][MAX_DP_TOKEN_LENGTH], int 
   return result;
 }
 
-void mulInsInit(char tokenised_ins[][MAX_MUL_TOKEN_LENGTH], char result[]) {
+void mulInsInit(char **tokenised_ins, char result[]) {
   regNumToBinary(tokenised_ins[1], &result[12]);//Rd
   regNumToBinary(tokenised_ins[2], &result[28]);//Rm
   regNumToBinary(tokenised_ins[3], &result[20]);//Rs
@@ -295,7 +280,7 @@ void mulInsInit(char tokenised_ins[][MAX_MUL_TOKEN_LENGTH], char result[]) {
 * Output is a string contains '0' and '1' represents required binary number
 * */
 //TODO:remember to free result in the caller
-char* multiply_ins_assembler(char tokenised_ins[][MAX_MUL_TOKEN_LENGTH], int tokenCount, int insNum) {
+char* multiply_ins_assembler(char **tokenised_ins, int tokenCount, int insNum) {
   char *result = calloc(33, sizeof(char));
   result[0] = '1';//cond
   result[1] = '1';
@@ -332,8 +317,8 @@ char* multiply_ins_assembler(char tokenised_ins[][MAX_MUL_TOKEN_LENGTH], int tok
 * Output is a string contains '0' and '1' represents required binary number
 * */
 //TODO:remember to free result in the caller
-char* single_data_transfer_ins_assembler(char tokenised_ins[][MAX_SDT_TOKEN_LENGTH], int tokenCount, int insNum) {
+char* single_data_transfer_ins_assembler(char **tokenised_ins, int tokenCount, int insNum) {
   char *result = calloc(33, sizeof(char));
-
+  //
   return result;
 }
