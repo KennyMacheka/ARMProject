@@ -12,6 +12,8 @@
 #define GPIO_LOCATION_2_2 0x00000004
 #define GPIO_LOCATION_3_2 0x00000008
 
+#define GPIO_CLEAR 0x20200028
+
 const int WORD_SIZE = 32;
 const int REGISTERS = 17;
 const int BLOCK_INTERVAL = 4;
@@ -73,15 +75,9 @@ int gpioInMemory (int location){
       return 0;
   }
 }
-uint32_t readMemory(struct ARM_Processor *processor, int location) {
-  //b for byte
-  /*
-      Reads 3 8bits of data, starting from location, to location+3
-      Then returns result in Big Endian form.
-   */
 
-  if (location >= GPIO_LOCATION_1 && location <= GPIO_LOCATION_3) {
-    switch(location){
+void printGPIOAccess(int location) {
+  switch(location){
     case GPIO_LOCATION_1:
       printf("One GPIO pin from 0 to 9 has been accessed\n");
       break;
@@ -91,7 +87,18 @@ uint32_t readMemory(struct ARM_Processor *processor, int location) {
     case GPIO_LOCATION_3:
       printf("One GPIO pin from 20 to 29 has been accessed\n");
       break;
-    }
+  }
+}
+
+uint32_t readMemory(struct ARM_Processor *processor, int location) {
+  //b for byte
+  /*
+      Reads 3 8bits of data, starting from location, to location+3
+      Then returns result in Big Endian form.
+   */
+
+  if (location >= GPIO_LOCATION_1 && location <= GPIO_LOCATION_3) {
+    printGPIOAccess(location);
     return (uint32_t) location;
   } else if (location >= MEMORY_LOCATIONS){
     printf("Error: Out of bounds memory access at address 0x%08x\n", location);
@@ -110,9 +117,9 @@ uint32_t readMemory(struct ARM_Processor *processor, int location) {
 
 uint32_t readMemoryLittleEndian(struct ARM_Processor *processor, int location) {
 
-  if (location >= GPIO_LOCATION_1 && location <= GPIO_LOCATION_2) {
+  if (location >= GPIO_LOCATION_1 && location <= GPIO_LOCATION_3) {
+    printGPIOAccess(location);
     location = gpioInMemory(location);
-
   } else if (location >= MEMORY_LOCATIONS){
     printf("Error: Out of bounds memory access at address 0x%08x\n", location);
     return 0;
@@ -131,11 +138,11 @@ uint32_t readMemoryLittleEndian(struct ARM_Processor *processor, int location) {
 void writeToMemory(struct ARM_Processor *processor, uint32_t data, int location) {
   //pre : data in big endian
   //LSB is stored first (by the very definition of little endian)
-
-  if (location >= GPIO_LOCATION_1 && location <= GPIO_LOCATION_2)
+  if (location >= GPIO_LOCATION_1 && location <= GPIO_LOCATION_3) {
+    printGPIOAccess(location);
     location = gpioInMemory(location);
 
-  else if (location >= MEMORY_LOCATIONS){
+  } else if (location >= MEMORY_LOCATIONS){
     printf("Error: Out of bounds memory access at address 0x%08x\n", location);
     return;
   }
