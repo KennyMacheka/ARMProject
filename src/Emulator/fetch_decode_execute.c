@@ -507,7 +507,7 @@ int multiply(struct ARM_Processor *processor, uint32_t a, uint32_t s, uint32_t r
 
 int singleDataTransfer(struct ARM_Processor *processor, uint32_t i, uint32_t p, uint32_t u,
                        uint32_t l, uint32_t rn, uint32_t rd, uint32_t offset){
-  //Pre: rd !+ pc. Also PC won't come up in a shift register
+  //Pre: rd != pc. Also PC won't come up in a shift register
   //Offset is a shifted register
   //Add error flag for rm = rn
   if (i == 1) {
