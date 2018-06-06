@@ -19,9 +19,13 @@ add_executable(Emulator
 add_executable(Assembler
                src/assembler/assemble.c
                src/assembler/binary_conversion.c
-               src/assembler/file_processing.c
-               src/assembler/first_pass.c
-               src/assembler/symbol_table.c
+               src/assembler/binary_conversion.h
+               src/assembler/convert_instructions.c
+               src/assembler/convert_instructions.h
+               src/assembler/file_handling.c
+               src/assembler/file_handling.h
+               src/assembler/symbol_table_tokens.c
+               src/assembler/symbol_table_tokens.h
                src/Utilities/bit_operations_utilities.c
                src/Utilities/bit_operations_utilities.h)
 

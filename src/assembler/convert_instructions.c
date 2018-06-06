@@ -8,10 +8,11 @@
 #include "convert_instructions.h"
 #include "symbol_table_tokens.h"
 #include "../Utilities/bit_operations_utilities.h"
+#include "binary_conversion.h"
 
 uint32_t handleBranch (struct tokenedInstruction *, struct symbolTable* , int);
 
-size_t convert(struct assemblyCode *input, FILE *fout){
+size_t convertBranch(struct assemblyCode *input, FILE *fout){
 
   struct symbolTable *table = setupTable();
   struct tokenedCode* tokens = setupTokens(input);
@@ -38,6 +39,40 @@ size_t convert(struct assemblyCode *input, FILE *fout){
   //Check endianness of this
   return fwrite(machineCode, 4, machineLines, fout);
 
+}
+
+int findInsNum(char *ins) {
+  char *opcodes[] = {"add","sub","rsb","and","eor","orr","mov","tst","teq","cmp","mul","mla"};//sdt
+  for(int i = 0; i < 12; i++) {
+    if(strcmp(ins, opcodes[i]) == 0) {
+      return i;
+    }
+  }
+  return -1;
+}
+
+size_t convertDataProcess(struct assemblyCode *input, FILE *fout) {
+  struct symbolTable *table = setupTable();
+  struct tokenedCode* tokens = setupTokens(input);
+  char *binString;
+  binString=data_process_ins_assembler(tokens->code->line,tokens->code->numTokens,findInsNum(tokens->code->line[0]));
+  size_t result;
+  result = (size_t) strtol(binString, NULL, 2);
+  return result;
+}
+
+size_t convertMultiply(struct assemblyCode *input, FILE *fout) {
+  struct symbolTable *table = setupTable();
+  struct tokenedCode* tokens = setupTokens(input);
+  char *binString;
+  binString=multiply_ins_assembler(tokens->code->line,tokens->code->numTokens,findInsNum(tokens->code->line[0]));
+  size_t result;
+  result = (size_t) strtol(binString, NULL, 2);
+  return result;
+}
+
+size_t convertSDT(struct assemblyCode *input, FILE *fout) {
+  //TODO
 }
 
 
