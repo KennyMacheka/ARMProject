@@ -6,6 +6,7 @@
 #define ARM11_35_FILE_HANDLING_H
 #include <stddef.h>
 #include <stdio.h>
+
 extern const int MAX_CHARS;
 struct assemblyCode{
   char **code;

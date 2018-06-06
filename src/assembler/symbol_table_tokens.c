@@ -8,29 +8,43 @@
 #include "symbol_table_tokens.h"
 
 struct symbolTable *setupTable (){
-  struct symbolTable *t = malloc(sizeof(struct symbolTable));
-  t->addresses = NULL;
-  t->label = NULL;
-  t->size = 0;
+  struct symbolTable *table = malloc(sizeof(struct symbolTable));
+  table->addresses = NULL;
+  table->label = NULL;
+  table->size = 0;
 
-  return t;
+  return table;
 }
 
-void insert(struct symbolTable *t, int address, char *label){
-  t->addresses = realloc(t->addresses, sizeof(int)*(t->size+1));
-  t->label = realloc(t->label, sizeof(char*)*(t->size+1));
+void insert(struct symbolTable *table, int address, char *label){
+  table->addresses = realloc(table->addresses, sizeof(int)*(table->size+1));
+  table->label = realloc(table->label, sizeof(char*)*(table->size+1));
 
-  t->addresses[t->size] = address;
-  t->label[t->size++] = label;
+  table->addresses[table->size] = address;
+  table->label[table->size] = malloc(strlen(label));
+  table->label[table->size] = strcpy(table->label[table->size++],label);
 }
 
-int get(struct symbolTable *t, char *label){
-  for(int i = 0; i < t->size; i++){
-    if(strcmp(t->label[i], label) == 0){
-      return t->addresses[i];
+int get(struct symbolTable *table, char *label){
+  for(int i = 0; i < table->size; i++){
+    if(strcmp(table->label[i], label) == 0){
+      return table->addresses[i];
     }
   }
   return -1;
+}
+
+void freeSymbolTable (struct symbolTable **table){
+
+  for (int i = 0; i<(*table)->size; i++){
+    free((*table)->label[i]));
+  }
+
+  free((*table)->addresses);
+  free((*table)->label);
+
+  free(*table);
+  *table = NULL;
 }
 
 

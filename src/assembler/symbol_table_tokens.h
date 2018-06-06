@@ -29,6 +29,7 @@ struct tokenedCode{
 struct symbolTable *setupTable();
 void insert(struct symbolTable *, int , char *);
 int get(struct symbolTable *, char *);
+void freeSymbolTable (struct symbolTable **);
 void tokenInstruction (char *, struct tokenedInstruction *);
 struct tokenedCode *setupTokens(struct assemblyCode *);
 void freeTokenedCode (struct tokenedCode **);
