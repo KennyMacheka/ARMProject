@@ -57,10 +57,6 @@ void outputInstructions(struct ARM_Processor* processor) {
   }
 }
 
-int transformGPIOLoc(int location) {
-  return location - GPIO_LOCATION_1 + MEMORY_LOCATIONS - 12;
-}
-
 int gpioInMemory (int location){
   //pre- location is one of the 3 gpio addresses
   switch(location){
