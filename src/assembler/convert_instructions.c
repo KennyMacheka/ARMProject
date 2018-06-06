@@ -1,20 +1,23 @@
 //
 // Created by kenny on 05/06/18.
 //
-
+#include <stdio.h>
 #include <string.h>
 #include <stdint.h>
+#include <stdlib.h>
 #include "convert_instructions.h"
 #include "symbol_table_tokens.h"
 #include "../Utilities/bit_operations_utilities.h"
 
+uint32_t handleBranch (struct tokenedInstruction *, struct symbolTable* , int);
 
-void convert(struct assemblyCode *input){
-
-  //Each p
+size_t convert(struct assemblyCode *input, FILE *fout){
 
   struct symbolTable *table = setupTable();
   struct tokenedCode* tokens = setupTokens(input);
+  uint32_t machineCode[input->numLines];
+  size_t machineLines = 0;
+
 
   for (int i = 0; i<input->numLines; i++){
     if (strchr(input->code[i],':')){
@@ -24,16 +27,23 @@ void convert(struct assemblyCode *input){
 
   for (int i = 0; i<input->numLines; i++){
     char *op = tokens->code->line[0];
-    uint32_t machineCode;
-    if (op[0] == 'b'){
-      machineCode = handleBranch(tokens->code, table, i);
+    if(strchr(op,':'))
+      continue;
+
+    else if (op[0] == 'b'){
+      machineCode[machineLines++] = handleBranch(tokens->code, table, i);
     }
   }
+
+  //Check endianness of this
+  return fwrite(machineCode, 4, machineLines, fout);
+
 }
 
 
 uint32_t handleBranch (struct tokenedInstruction *tokens, struct symbolTable* table, int pos){
 
+  uint32_t pcAhead = 8;
   uint32_t machineCode = 0;
   setBit(&machineCode, 27, 1);
   setBit(&machineCode, 25, 1);
@@ -54,8 +64,31 @@ uint32_t handleBranch (struct tokenedInstruction *tokens, struct symbolTable* ta
     }
   }
 
+  uint32_t  offset;
+  uint32_t  address;
+  if (strchr(branchTo,':')){
+    address = (uint32_t) get(table, branchTo);
+  }
 
+  else{
+    //hex
+    if (strchr(branchTo, 'x') || strchr(branchTo,'X')){
+      address = strtol(branchTo, NULL, 16);
+    }
 
+    //dec
+    else{
+      address = strtol(branchTo, NULL, 10);
+    }
+  }
+
+  address = ((uint32_t) pos) - address - pcAhead;
+  //We now have a signed offset (I used uint32_t as bit shifting is defined by the C standard)
+  address >>= 2;
+
+  for (int i = 23; i>= 0; i++){
+    setBit(&machineCode,i,isolateBits(address, i, i, 0));
+  }
 
   return machineCode;
 

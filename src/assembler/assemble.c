@@ -25,14 +25,17 @@ int main(int argc, char **argv) {
     return EXIT_FAILURE;
   }
 
-  FILE* file = fopen(argv[1],"r");
-  if (file == NULL){
+  FILE* fin = fopen(argv[1],"r");
+  FILE* fout = fopen(argv[2],"wb");
+
+  if (fin == NULL){
     printf("Invalid file input.\n");
     return EXIT_FAILURE;
   }
 
-  struct assemblyCode *input = readFile(file);
-  fclose(file);
+
+  struct assemblyCode *input = readFile(fin);
+  fclose(fin);
 
   struct tokenedCode *tokens = setupTokens(input);
 

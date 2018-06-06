@@ -37,7 +37,7 @@ int get(struct symbolTable *table, char *label){
 void freeSymbolTable (struct symbolTable **table){
 
   for (int i = 0; i<(*table)->size; i++){
-    free((*table)->label[i]));
+    free((*table)->label[i]);
   }
 
   free((*table)->addresses);

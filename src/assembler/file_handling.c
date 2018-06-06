@@ -56,17 +56,3 @@ void freeCode(struct assemblyCode **code){
   free(*code);
   *code = NULL;
 }
-
-/*
-
-//writes binary represenation to binary file
-void writer(char *binary, char *dest) {
-  FILE *file;
-  file = fopen(dest, "wb");
-  int bin = convert_to_int(binary);
-  if (file != NULL) {
-    fwrite(bin, sizeof(int), 1, file);
-  }
-
-  fclose(file);
-}*/
