@@ -85,12 +85,22 @@ uint32_t readMemory(struct ARM_Processor *processor, int location) {
    */
 
   if (location >= GPIO_LOCATION_1 && location <= GPIO_LOCATION_3) {
+    switch(location){
+    case GPIO_LOCATION_1:
+      printf("One GPIO pin from 0 to 9 has been accessed\n");
+      break;
+    case GPIO_LOCATION_2:
+      printf("One GPIO pin from 10 to 19 has been accessed\n");
+      break;
+    case GPIO_LOCATION_3:
+      printf("One GPIO pin from 20 to 29 has been accessed\n");
+      break;
+    }
     return (uint32_t) location;
   } else if (location >= MEMORY_LOCATIONS){
     printf("Error: Out of bounds memory access at address 0x%08x\n", location);
     return 0;
   }
-
 
   uint32_t result = 0;
   uint8_t shiftAmount = 0;
