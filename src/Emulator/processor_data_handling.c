@@ -25,7 +25,6 @@ const int LP = 14;
 const int PC = 15;
 const int CPSR = 16;
 
-
 void initialiseProcessor(struct ARM_Processor* processor) {
 
   processor->memory = calloc(MEMORY_LOCATIONS+GPIO_LOCATIONS,sizeof(uint8_t));
@@ -85,12 +84,11 @@ uint32_t readMemory(struct ARM_Processor *processor, int location) {
       Then returns result in Big Endian form.
    */
 
-  if (location >= GPIO_LOCATION_1 && location <= GPIO_LOCATION_2)
+  if (location >= GPIO_LOCATION_1 && location <= GPIO_LOCATION_3) {
     return (uint32_t) location;
-
-  else if (location >= MEMORY_LOCATIONS){
+  } else if (location >= MEMORY_LOCATIONS){
     printf("Error: Out of bounds memory access at address 0x%08x\n", location);
-    return FAILURE;
+    return 0;
   }
 
 
@@ -106,12 +104,12 @@ uint32_t readMemory(struct ARM_Processor *processor, int location) {
 
 uint32_t readMemoryLittleEndian(struct ARM_Processor *processor, int location) {
 
-  if (location >= GPIO_LOCATION_1 && location <= GPIO_LOCATION_2)
+  if (location >= GPIO_LOCATION_1 && location <= GPIO_LOCATION_2) {
     location = gpioInMemory(location);
 
-  else if (location >= MEMORY_LOCATIONS){
+  } else if (location >= MEMORY_LOCATIONS){
     printf("Error: Out of bounds memory access at address 0x%08x\n", location);
-    return FAILURE;
+    return 0;
   }
 
   uint32_t result = 0;
