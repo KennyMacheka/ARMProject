@@ -15,7 +15,7 @@ int main(int argc, char **argv) {
   struct ARM_Processor processor;
   initialiseProcessor(&processor);
 
-  while (count < MEMORY_LOCATIONS){
+  while (count < MEMORY_LOCATIONS+GPIO_LOCATIONS){
     if (feof(file))
         break;
 
