@@ -6,20 +6,25 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <stdbool.h>
+#include <assert.h>
 #include "convert_instructions.h"
 #include "symbol_table_tokens.h"
 #include "../Utilities/bit_operations_utilities.h"
+#include "../Emulator/processor_data_handling.h"
 #include "binary_conversion.h"
 
 uint32_t stringToNum (char *);
 uint32_t convertBranch (struct tokenedInstruction *, struct symbolTable* , int);
 uint32_t convertSingleDataTransfer (struct tokenedInstruction *, struct symbolTable*,
                                     int , size_t, bool);
+uint32_t registerValue (char* );
+int storeConstant (uint32_t*, uint32_t);
+void storeShiftRegister (uint32_t* , char *, char *, char *);
 
 static int storedConstants = 0;
 static uint32_t *constants = NULL;
 
-size_t convertBranch(struct assemblyCode *input, FILE *fout){
+size_t convert(struct assemblyCode *input, FILE *fout){
 
   struct symbolTable *table = setupTable();
   struct tokenedCode* tokens = setupTokens(input);
@@ -40,13 +45,14 @@ size_t convertBranch(struct assemblyCode *input, FILE *fout){
       continue;
 
     else if (op[0] == 'b')
-      machineCode[machineLines++] = convertBranch(tokens->code, table, i);
+      machineCode[machineLines++] = convertBranch(tokens->code, table, machineLines);
 
     else if (strcmp(op, "ldr") == 0)
-      machineCode[machineLines++] = convertSingleDataTransfer(tokens->code, table, i, input->numLines, true);
+      machineCode[machineLines++] = convertSingleDataTransfer(tokens->code, table, machineLines, input->numLines, true);
 
     else if (strcmp(op, "str") == 0)
-      machineCode[machineLines++] = convertSingleDataTransfer(tokens->code, table, i, input->numLines, false);
+      machineCode[machineLines++] = convertSingleDataTransfer(tokens->code, table, machineLines, input->numLines, false);
+
   }
 
 
@@ -64,41 +70,6 @@ size_t convertBranch(struct assemblyCode *input, FILE *fout){
   return fwrite(machineCode, 4, machineLines, fout);
 
 }
-
-int findInsNum(char *ins) {
-  char *opcodes[] = {"add","sub","rsb","and","eor","orr","mov","tst","teq","cmp","mul","mla"};//sdt
-  for(int i = 0; i < 12; i++) {
-    if(strcmp(ins, opcodes[i]) == 0) {
-      return i;
-    }
-  }
-  return -1;
-}
-
-size_t convertDataProcess(struct assemblyCode *input, FILE *fout) {
-  struct symbolTable *table = setupTable();
-  struct tokenedCode* tokens = setupTokens(input);
-  char *binString;
-  binString=data_process_ins_assembler(tokens->code->line,tokens->code->numTokens,findInsNum(tokens->code->line[0]));
-  size_t result;
-  result = (size_t) strtol(binString, NULL, 2);
-  return result;
-}
-
-size_t convertMultiply(struct assemblyCode *input, FILE *fout) {
-  struct symbolTable *table = setupTable();
-  struct tokenedCode* tokens = setupTokens(input);
-  char *binString;
-  binString=multiply_ins_assembler(tokens->code->line,tokens->code->numTokens,findInsNum(tokens->code->line[0]));
-  size_t result;
-  result = (size_t) strtol(binString, NULL, 2);
-  return result;
-}
-
-size_t convertSDT(struct assemblyCode *input, FILE *fout) {
-  //TODO
-}
-
 
 uint32_t convertBranch (struct tokenedInstruction *tokens, struct symbolTable* table, int pos){
 
@@ -150,19 +121,24 @@ uint32_t convertSingleDataTransfer (struct tokenedInstruction *tokens, struct sy
 
   uint32_t  machineCode = 0;
   setBit(&machineCode, 26, 1);
+  //set to add by default
+  setBit(&machineCode, 23, 1);
 
+  struct tokenedInstruction address;
+  uint32_t  offset;
   //Set L bit
   if (isLoading){
     setBit(&machineCode, 20, 1);
   }
 
   //Set Rd bits (note, register value is representable by 4 bits max)
-  uint32_t rd = stringToNum(tokens->line[1]+1);
+  uint32_t rd = registerValue(tokens->line[1]);
   rd <<= 12;
   machineCode |= rd;
 
   //Check operand 2 is an expression
   if (tokens->line[2][0] == '=' && isLoading){
+    setBit(&machineCode, 24, 1);
     uint32_t constant = stringToNum(tokens->line[2]+1);
 
     //Otherwise use mov
@@ -171,25 +147,68 @@ uint32_t convertSingleDataTransfer (struct tokenedInstruction *tokens, struct sy
       constants = realloc(constants,sizeof(uint32_t)*(storedConstants+1));
       constants[storedConstants++] = constant;
 
-      //Set PC and offset here, no need to convert to string
-
+      offset = ((uint32_t )storedConstants-1-pos) + 8;
+      uint32_t pc = (uint32_t) PC;
+      //PC is rn
+      pc <<= 16;
+      machineCode |= pc;
+      storeConstant(&machineCode, offset);
     }
 
     //else, treat as mov (move data processing function into this file)
     else{
 
     }
+  }
 
-    /**
-        Here, Rn is the pC, so our offset just needs to be address of constant - pos - 8?
-        This constant needs to be put at the end of the program (as far to the end as possible).
-        Then I think offset is calculated by address of that value - current address - 8 (PC ahead by 8 bytes)
-        The end of the program can be calculated by how many instructions I have in total - the number of lebels
-     */
+  //Form ldr/str rd, [...]
+  else if (tokens->line[2][0] == '[' && tokens->numTokens == 2){
+    setBit(&machineCode, 24, 1);
+    //Remove ']'
+    tokens->line[2][strlen(tokens->line[2])-1] = '\0';
+    tokenInstruction(tokens->line[2]+1, &address);
+    uint32_t  rn = registerValue(address.line[0]);
+    rn <<= 16;
+    machineCode |= rn;
+    //Of form [RN]
+    if (address.numTokens == 1){
+      storeConstant(&machineCode, 0);
+    }
+
+    else if (address.line[1][0] == '#')
+      storeConstant(&machineCode,stringToNum(address.line[1]+1));
+
+    //Shift register
+    else{
+      int registerPos = 0;
+
+      if (address.line[1][0] == '-') {
+        setBit(&machineCode, 23, 0);
+        registerPos = 1;
+      }
+
+      //No shifting
+      if (address.numTokens == 2){
+        storeShiftRegister(&machineCode, address.line[1] + registerPos, NULL, NULL);
+      }
+
+      else
+        storeShiftRegister(&machineCode, address.line[1] + registerPos, address.line[2], address.line[3]);
+
+    }
 
   }
 
-  else if
+  /*
+    //Post indexing, of form [RN], <#expr> or [RN], shift Reg
+  else{
+    tokens->line[0][strlen(tokens->line[0])-1] = '\0';
+    uint32_t rn = registerValue(tokens->line[0]+1);
+    rn <<= 16;
+    machineCode |= rn;
+
+
+  }*/
 
 
 
@@ -197,16 +216,59 @@ uint32_t convertSingleDataTransfer (struct tokenedInstruction *tokens, struct sy
 
 }
 
+int storeConstant (uint32_t* machineCode, uint32_t val){
+
+  setBit(machineCode, 25, 1);
+  //We need to store 8 bit value (val) into 12 bit location
+  uint32_t rotateAmount = 0;
+  uint32_t seenValue = val;
+  while (val > 255 && rotateAmount % 2 != 0){
+    val = rotateLeft(val,1);
+    rotateAmount ++;
+    if (val == seenValue){
+      printf("Cannot store value.\n");
+      return 1;
+    }
+  }
+
+  rotateAmount /= 2;
+  rotateAmount <<= 8;
+
+  *machineCode |= rotateAmount;
+  *machineCode |= seenValue;
+
+  return 0;
+
+}
+
+void storeShiftRegister (uint32_t* machineCode, char *baseReg, char *shiftName, char *regOrExpr){
+
+
+
+}
+
 uint32_t registerValue (char* r){
+  /**Move constants in Emulator/processor_data_handling.c in separate file.*/
   assert (r != NULL);
 
   if (r[0] == 'r')
     return stringToNum(r+1);
 
   else if (strcmp("PC", r) == 0)
-    return 15;
+    return (uint32_t) PC;
 
-  //Do other registers
+  else if (strcmp("SP", r) == 0)
+    return (uint32_t) SP;
+
+  else if (strcmp("LP", r) == 0)
+    return (uint32_t) LP;
+
+  else if (strcmp("CPSR", r) == 0)
+    return (uint32_t) CPSR;
+
+
+  return UINT32_MAX;
+
 }
 
 uint32_t stringToNum (char *str){
@@ -224,4 +286,36 @@ uint32_t stringToNum (char *str){
   }
 
   return (uint32_t) num;
+}
+
+
+
+int findInsNum(char *ins) {
+  char *opcodes[] = {"add","sub","rsb","and","eor","orr","mov","tst","teq","cmp","mul","mla"};//sdt
+  for(int i = 0; i < 12; i++) {
+    if(strcmp(ins, opcodes[i]) == 0) {
+      return i;
+    }
+  }
+  return -1;
+}
+
+size_t convertDataProcess(struct assemblyCode *input, FILE *fout) {
+  struct symbolTable *table = setupTable();
+  struct tokenedCode* tokens = setupTokens(input);
+  char *binString;
+  binString=data_process_ins_assembler(tokens->code->line,tokens->code->numTokens,findInsNum(tokens->code->line[0]));
+  size_t result;
+  result = (size_t) strtol(binString, NULL, 2);
+  return result;
+}
+
+size_t convertMultiply(struct assemblyCode *input, FILE *fout) {
+  struct symbolTable *table = setupTable();
+  struct tokenedCode* tokens = setupTokens(input);
+  char *binString;
+  binString=multiply_ins_assembler(tokens->code->line,tokens->code->numTokens,findInsNum(tokens->code->line[0]));
+  size_t result;
+  result = (size_t) strtol(binString, NULL, 2);
+  return result;
 }
