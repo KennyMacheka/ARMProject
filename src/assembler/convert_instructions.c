@@ -8,9 +8,11 @@
 #include <stdbool.h>
 #include <assert.h>
 #include "convert_instructions.h"
-#include "symbol_table_tokens.h"
 #include "../Utilities/bit_operations_utilities.h"
+#include "../Emulator/processor_data_handling.h"
+#include "symbol_table_tokens.h"
 #include "binary_conversion.h"
+
 
 uint32_t stringToNum (char *);
 uint32_t convertBranch (struct tokenedInstruction *, struct symbolTable * , int);
@@ -23,6 +25,7 @@ uint32_t registerValue (char * );
 int storeConstant (uint32_t*, uint32_t);
 void storeShiftRegister (uint32_t * , char *, char *, char *);
 void setRegAndOffset (uint32_t *, char *, char *);
+void outputMachineCode (uint32_t *, int );
 
 
 static int storedConstants = 0;
@@ -86,12 +89,14 @@ size_t convert(struct assemblyCode *input, FILE *fout){
   freeTokenedCode(&tokens);
 
   if (machineLines+storedConstants > input->numLines){
-    machineCode = realloc(machineCode, input->numLines +(machineLines+storedConstants - input->numLines));
+    machineLines = input->numLines +(machineLines+storedConstants - input->numLines);
+    machineCode = realloc(machineCode, machineLines);
   }
 
   for (int i = 0; i<storedConstants; i++)
     machineCode[input->numLines+i] = constants[i];
 
+  outputMachineCode(machineCode, machineLines);
   //Check endianness of this
   return fwrite(machineCode, 4, machineLines, fout);
 
@@ -107,24 +112,24 @@ int findInsNum(char *ins) {
   return -1;
 }
 
-size_t convertDataProcess(struct assemblyCode *input, FILE *fout) {
-  struct symbolTable *table = setupTable();
-  struct tokenedCode* tokens = setupTokens(input);
-  char *binString;
-  binString=data_process_ins_assembler(tokens->code->line,tokens->code->numTokens,findInsNum(tokens->code->line[0]));
-  size_t result;
-  result = (size_t) strtol(binString, NULL, 2);
+uint32_t convertDataProcess(struct tokenedInstruction *tokens) {
+
+  char *binString = data_process_ins_assembler(tokens->line,tokens->numTokens,findInsNum(tokens->line[0]));
+  uint32_t result = (uint32_t) strtol(binString, NULL, 2);
   free(binString);
+
+  //Check for shifted register
+  //Done by checking if 4th operand is not an expression
+  if (tokens->line[3][0] != '#')
+    storeShiftRegister(&result, tokens->line[3], tokens->line[4], tokens->line[5]);
+
   return result;
 }
 
-size_t convertMultiply(struct assemblyCode *input, FILE *fout) {
-  struct symbolTable *table = setupTable();
-  struct tokenedCode* tokens = setupTokens(input);
-  char *binString;
-  binString=multiply_ins_assembler(tokens->code->line,tokens->code->numTokens,findInsNum(tokens->code->line[0]));
-  size_t result;
-  result = (size_t) strtol(binString, NULL, 2);
+uint32_t convertMultiply(struct tokenedInstruction *tokens) {
+
+  char *binString = multiply_ins_assembler(tokens->line,tokens->numTokens,findInsNum(tokens->line[0]));
+  uint32_t result = (uint32_t) strtol(binString, NULL, 2);
   free(binString);
   return result;
 }
@@ -154,12 +159,9 @@ uint32_t convertBranch (struct tokenedInstruction *tokens, struct symbolTable* t
   }
 
   uint32_t  offset;
-  uint32_t  address;
-  if (strchr(branchTo,':')){
-    address = (uint32_t) get(table, branchTo);
-  }
+  uint32_t  address = (uint32_t) get(table, branchTo);
 
-  else{
+  if (address == -1){
     address = stringToNum(branchTo);
   }
 
@@ -329,7 +331,8 @@ void setRegAndOffset (uint32_t *machineCode, char *reg, char *expr){
 
 void storeShiftRegister (uint32_t *machineCode, char *baseReg, char *shiftName, char *regOrExpr){
 
-  uint32_t  bReg = registerValue(baseReg);
+
+  uint32_t bReg = registerValue(baseReg);
   *machineCode |= bReg;
 
   if (!shiftName && !regOrExpr)
@@ -415,16 +418,18 @@ int findInsNum(char *ins) {
   return -1;
 }
 
-uint32_t convertDataProcess(struct tokenedInstruction *tokens) {
-  char *binString;
-  binString = data_process_ins_assembler(tokens->line,tokens->numTokens,findInsNum(tokens->line[0]));
-  uint32_t result = (uint32_t) strtol(binString, NULL, 2);
-  return result;
-}
+void outputMachineCode (uint32_t *machineCode, int numLines){
 
-uint32_t convertMultiply(struct tokenedInstruction* tokens) {
-  char *binString;
-  binString= multiply_ins_assembler(tokens->line,tokens->numTokens,findInsNum(tokens->line[0]));
-  uint32_t result = (uint32_t) strtol(binString, NULL, 2);
-  return result;
+  for (int i = 0; i<numLines; i++) {
+    uint32_t *bits = getBits(reverseEndianness(machineCode[i]));
+
+    for (int j = 0; j<4; j++) {
+      for (int k=0; k<8; k++)
+        printf("%d", bits[j*8 + k]);
+
+      printf(" ");
+    }
+    printf("\n");
+    free(bits);
+  }
 }

@@ -8,7 +8,6 @@
 
 
 
-
 void numToBinChar4(uint16_t num, char result[]) {
   uint16_t mask = 1 << 3;
   for(int i = 0; i < 4; i++) {
