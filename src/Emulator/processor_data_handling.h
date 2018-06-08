@@ -10,6 +10,7 @@ extern const int WORD_SIZE;
 extern const int REGISTERS;
 extern const int GENERAL_REGISTERS;
 extern const int MEMORY_LOCATIONS;
+extern const int GPIO_LOCATIONS;
 extern const int BLOCK_INTERVAL;
 extern const int SP;
 extern const int LP;

@@ -1,30 +1,67 @@
-\documentclass[11pt]{article}
+\documentclass[a4paper]{article}
 
-\usepackage{fullpage}
+%% Language and font encodings
+\usepackage[english]{babel}
+\usepackage[utf8x]{inputenc}
+\usepackage[T1]{fontenc}
+
+%% Sets page size and margins
+\usepackage[a4paper,top=3cm,bottom=2cm,left=3cm,right=3cm,marginparwidth=1.75cm]{geometry}
+
+%% Useful packages
+\usepackage{amsmath}
+\usepackage{graphicx}
+\usepackage[colorinlistoftodos]{todonotes}
+\usepackage[colorlinks=true, allcolors=blue]{hyperref}
+
+\title{ARM 1st June Checkpoint}
+\author{Dhru Devalia(leader), Kenny Macheka, Wanshunyu Zhang, and Sam Liem}
 
 \begin{document}
-
-\title{ARM Checkpoint... }
-\author{TODO}
-
 \maketitle
+\section{Division of Labor}
 
-\section{Group Organisation}
+After reading the specification, we decided to split into two teams. Since there is only a slight overlap between the Emulator in part 1 and the Assembler in part 2, we chose work on them in two teams concurrently. We split up the group into two, so that each sub-teams would have an experienced C programmer. The groups are as follows:
+\begin{itemize}
+\item \textbf{Part 1: Emulator}: \textit{Kenny Macheka and Sam Liem}
+\item \textbf{Part 2: Assembler}: \textit{Dhru Devalia and Zhang Wan}
+\end{itemize}
 
-Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor
-incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis
-nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.
-Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu
-fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in
-culpa qui officia deserunt mollit anim id est laborum.
+\subsection{Emulator}
+After reading the specification for the Emulator, we decided to split the Emulator into two sections: building data structures for the processor and memory along with subroutines for reading and writing to the latter, and processing instructions via the fetch-decode-execute cycle. Kenny worked on the overall structure of the emulator, i.e. memory, registers, pipeline, and fetching and decoding the instructions.
+Sam Liem worked on execution of the four different types of instructions: Data Processing, Multiply, Single Data Transfer, and Branch.
+\subsection{Assembler}
+After reading the specification we wrote a short summary containing initial functions and variables we might need. Specifically we drew a flowchart from input text file to output binary file, which in code would be represented as a loop ending when coming to the end of the text file. From the flowchart we saw the main tasks revolved around file processing, string manipulation, and binary conversion. File processing and string tokenisation was done by Dhru Devalia and Zhang Wan completed the actual conversion of the assembly language instructions into machine code via the two pass method. 
 
-\section{Implementation Strategies}
+\section{Group Progress and Improvements}
+We created different branches on the git repository for the emulator and assembler. Sam and Kenny managed to complete the emulator in its entirety, along with the optional components. We'll now be working on finishing the remaining parts of the assembler, and then onto parts three and four. 
 
-Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor
-incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis
-nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.
-Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu
-fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in
-culpa qui officia deserunt mollit anim id est laborum.
+The general group relationship is very good, and each team is cohesive and communicates well. Due to the initial planning when constructing the layout for the code, it was very easy to know what each member's task was, and therefore simple enough to discuss and help one another with the relevant parts of the code-base. Progressing further on into the project, we will need to discuss and plan more as a whole group, as the sub-teams were able to more or less work independently of each other. 
+
+\section{Emulator Structure and Reusable code for the Assembler}
+
+We used a C structure to contain the different parts of the  ARM processor, which consists of the twelve general registers, along with the program counter, CPSR, LR and SR registers (the latter two not being used). We decided to use unsigned $32$ bit integer types (uint32\_t in C parlance) for all seventeen registers. We additionally stored the contents of main memory in the structure. As it is byte addressable by the ARM specification, we used the unsigned 8 bit type (uint8\_t) to store data. We briefly considered using character arrays to represent data and instructions, although we came to the agreement that this wouldn't be very efficient in terms of processing speed, memory and having to write a lot of utility functions to emulate bit operations.
+
+Our Emulator folder is split into the following C files:
+\begin{enumerate}
+\item bit\_operations\_utilities.c - contains generic utility functions for performing bit operations on unsigned 32 bit types. These functions include: 
+\begin{itemize}
+\item converting a decimal number to binary and placing the 1s and 0s in an array;
+\item Manipulating individual bits in a given variable, changing their values 
+\item Bit rotation by any arbitrary amount
+\item A function to reverse the Endianness of a 32-bit number
+\item A function called isolateBits which allows one to splice a chunk of bits in a number and place them anywhere and place them anywhere in a 32 bit container (the rest of the container will just be 0s)
+\item These functions allowed for improved readability in the fetch-decode-execute section, as well as allowing for greater ease when extracting various the various parameters for different instruction. The generality of this file could potentially prove it to be useful when creating the assembler.
+\end{itemize}
+\item processor\_data\_handling.c - this file contains functions related to the reading and writing of data into/from main memory, along with the setting up of the ARM Processor - which is just setting everything to a value of 0
+\item fetch\_decode\_execute.c - this file contains the structure for the pipeline, as well as the relevant functions for decoding instructions and executing them
+\item emulate.c- this file contains the main function, which is responsible for reading in a binary file and storing its contents in an instance of the ARM processor data structure from processor\_data\_handling.c . The function fetchDecodeExecute is then called, and when this terminates, non-zero memory locations are outputted along with the contents of the registers
+\end{enumerate}
+
+
+\section{Difficult future tasks and strategies to tackle them.}
+Due to the Raspberry pi's minimal memory we aren't certain the emulator will run fast enough on it. However, we've used no more memory than necessary so we shouldn't exceed the pi's RAM limits (the emulator only simulates  a 64KB processor after all). 
+
+Our most difficult task will probably be the extension, depending on what we choose to make. A good strategy should be to decide what we'll make as soon as possible and plan it to a reasonable degree before actually writing code, so as to avoid any major redesigning. We'll also need to develop a thorough testing plan for all of the components of the extension. Part of structuring the code will be to also distribute the work out to each member.
 
 \end{document}

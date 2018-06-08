@@ -166,7 +166,6 @@ void dataProcessCPSRInit(char **tokenised_ins, char result[]) {
 /* Input is a tokenised instruction with instruction number given(see doc/instructionNum)
  * Output is a string contains '0' and '1' represents required binary number
  * */
-//TODO:remember to free result in the caller
 char* data_process_ins_assembler(char **tokenised_ins, int tokenCount, int insNum) {
   char *result = calloc(33, sizeof(char));
   result[0] = '1';//cond
@@ -279,7 +278,6 @@ void mulInsInit(char **tokenised_ins, char result[]) {
 /* Input is a tokenised instruction with instruction number given(see doc/instructionNum)
 * Output is a string contains '0' and '1' represents required binary number
 * */
-//TODO:remember to free result in the caller
 char* multiply_ins_assembler(char **tokenised_ins, int tokenCount, int insNum) {
   char *result = calloc(33, sizeof(char));
   result[0] = '1';//cond
@@ -313,12 +311,3 @@ char* multiply_ins_assembler(char **tokenised_ins, int tokenCount, int insNum) {
   return result;
 }
 
-/* Input is a tokenised instruction with instruction number given(see doc/instructionNum)
-* Output is a string contains '0' and '1' represents required binary number
-* */
-//TODO:remember to free result in the caller
-char* single_data_transfer_ins_assembler(char **tokenised_ins, int tokenCount, int insNum) {
-  char *result = calloc(33, sizeof(char));
-  //
-  return result;
-}
