@@ -12,6 +12,5 @@
 
 char* data_process_ins_assembler(char **tokenised_ins, int tokenCount, int insNum);
 char* multiply_ins_assembler(char** tokenised_ins, int tokenCount, int insNum);
-//char* single_data_transfer_ins_assembler(char **tokenised_ins, int tokenCount, int insNum);
 
 #endif //ARM11_35_BINARY_CONVERSION_H

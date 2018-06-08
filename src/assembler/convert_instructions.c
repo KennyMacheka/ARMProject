@@ -42,7 +42,7 @@ size_t convertBranch(struct assemblyCode *input, FILE *fout){
 }
 
 int findInsNum(char *ins) {
-  char *opcodes[] = {"add","sub","rsb","and","eor","orr","mov","tst","teq","cmp","mul","mla"};//sdt
+  char *opcodes[] = {"add","sub","rsb","and","eor","orr","mov","tst","teq","cmp","mul","mla"};
   for(int i = 0; i < 12; i++) {
     if(strcmp(ins, opcodes[i]) == 0) {
       return i;
@@ -58,6 +58,7 @@ size_t convertDataProcess(struct assemblyCode *input, FILE *fout) {
   binString=data_process_ins_assembler(tokens->code->line,tokens->code->numTokens,findInsNum(tokens->code->line[0]));
   size_t result;
   result = (size_t) strtol(binString, NULL, 2);
+  free(binString);
   return result;
 }
 
@@ -68,11 +69,8 @@ size_t convertMultiply(struct assemblyCode *input, FILE *fout) {
   binString=multiply_ins_assembler(tokens->code->line,tokens->code->numTokens,findInsNum(tokens->code->line[0]));
   size_t result;
   result = (size_t) strtol(binString, NULL, 2);
+  free(binString);
   return result;
-}
-
-size_t convertSDT(struct assemblyCode *input, FILE *fout) {
-  //TODO
 }
 
 
