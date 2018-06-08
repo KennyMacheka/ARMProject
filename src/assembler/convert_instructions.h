@@ -7,8 +7,5 @@
 #include "file_handling.h"
 
 size_t convert(struct assemblyCode *, FILE *);
-size_t convertDataProcess(struct assemblyCode *input, FILE *fout);
-size_t convertMultiply(struct assemblyCode *input, FILE *fout);
-size_t convertSDT(struct assemblyCode *input, FILE *fout);
 
 #endif //ARM11_35_CONVERT_INSTRUCTIONS_H

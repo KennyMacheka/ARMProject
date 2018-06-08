@@ -14,12 +14,17 @@
 #include "binary_conversion.h"
 
 uint32_t stringToNum (char *);
-uint32_t convertBranch (struct tokenedInstruction *, struct symbolTable* , int);
-uint32_t convertSingleDataTransfer (struct tokenedInstruction *, struct symbolTable*,
+uint32_t convertBranch (struct tokenedInstruction *, struct symbolTable * , int);
+uint32_t convertSingleDataTransfer (struct tokenedInstruction *, struct symbolTable *,
                                     int , size_t, bool);
-uint32_t registerValue (char* );
+
+uint32_t convertDataProcess(struct tokenedInstruction *);
+uint32_t convertMultiply(struct tokenedInstruction * );
+uint32_t registerValue (char * );
 int storeConstant (uint32_t*, uint32_t);
-void storeShiftRegister (uint32_t* , char *, char *, char *);
+void storeShiftRegister (uint32_t * , char *, char *, char *);
+void setRegAndOffset (uint32_t *, char *, char *);
+
 
 static int storedConstants = 0;
 static uint32_t *constants = NULL;
@@ -29,8 +34,7 @@ size_t convert(struct assemblyCode *input, FILE *fout){
   struct symbolTable *table = setupTable();
   struct tokenedCode* tokens = setupTokens(input);
   uint32_t *machineCode = malloc(sizeof(uint32_t)*input->numLines);
-  size_t machineLines = 0;
-
+  uint32_t machineLines = 0;
 
   for (int i = 0; i<input->numLines; i++){
     if (strchr(input->code[i],':')){
@@ -38,23 +42,47 @@ size_t convert(struct assemblyCode *input, FILE *fout){
     }
   }
 
-
+  //Change this to handle special cases first
   for (int i = 0; i<input->numLines; i++){
-    char *op = tokens->code->line[0];
+    char *op = tokens->code[i].line[0];
     if(strchr(op,':'))
       continue;
 
     else if (op[0] == 'b')
-      machineCode[machineLines++] = convertBranch(tokens->code, table, machineLines);
+      machineCode[machineLines++] = convertBranch(&tokens->code[i], table, machineLines);
+
+    else if (op[0] == 'm')
+      machineCode[machineLines++] = convertMultiply(&tokens->code[i]);
 
     else if (strcmp(op, "ldr") == 0)
-      machineCode[machineLines++] = convertSingleDataTransfer(tokens->code, table, machineLines, input->numLines, true);
+      machineCode[machineLines++] = convertSingleDataTransfer(&tokens->code[i], table, machineLines, input->numLines, true);
 
     else if (strcmp(op, "str") == 0)
-      machineCode[machineLines++] = convertSingleDataTransfer(tokens->code, table, machineLines, input->numLines, false);
+      machineCode[machineLines++] = convertSingleDataTransfer(&tokens->code[i], table, machineLines, input->numLines, false);
 
+    else if (strcmp(op, "andeq") == 0)
+      machineCode[machineLines++] = 0;
+
+    else {
+
+      if (strcmp(op, "lsl") == 0){
+        //changing lsl Rn, <#expression> to mov Rn, Rn, lsl <#expression>
+        char *expr = tokens->code[i].line[2];
+        char *rn = tokens->code[i].line[1];
+        strcpy(tokens->code[i].line[0],"mov");
+        tokens->code[i].line = realloc(tokens->code[i].line, 5);
+        tokens->code[i].line[4] = (char *) malloc(strlen(expr));
+        strcpy(tokens->code[i].line[4],expr);
+        tokens->code[i].line[3] = (char *) malloc(3);
+        strcpy(tokens->code[i].line[3], "lsl");
+        tokens->code[i].line[2] = realloc(tokens->code[i].line[2],strlen(rn));
+        strcpy(tokens->code[i].line[2], rn);
+      }
+
+      //Instruction is data processing
+      machineCode[machineLines++] = convertDataProcess(&tokens->code[i]);
+    }
   }
-
 
   freeSymbolTable(&table);
   freeTokenedCode(&tokens);
@@ -120,10 +148,12 @@ uint32_t convertSingleDataTransfer (struct tokenedInstruction *tokens, struct sy
                                   int pos, size_t numInstructions, bool isLoading){
 
   uint32_t  machineCode = 0;
+  setBit(&machineCode, 31, 1);
+  setBit(&machineCode, 30, 1);
+  setBit(&machineCode, 29, 1);
   setBit(&machineCode, 26, 1);
   //set to add by default
   setBit(&machineCode, 23, 1);
-
   struct tokenedInstruction address;
   uint32_t  offset;
   //Set L bit
@@ -157,29 +187,29 @@ uint32_t convertSingleDataTransfer (struct tokenedInstruction *tokens, struct sy
 
     //else, treat as mov (move data processing function into this file)
     else{
-
+      strcpy(tokens->line[0],"mov");
+      return convertDataProcess(tokens);
     }
   }
 
   //Form ldr/str rd, [...]
-  else if (tokens->line[2][0] == '[' && tokens->numTokens == 2){
+  else if (tokens->line[2][0] == '[' && tokens->numTokens == 3){
+
     setBit(&machineCode, 24, 1);
-    //Remove ']'
-    tokens->line[2][strlen(tokens->line[2])-1] = '\0';
-    tokenInstruction(tokens->line[2]+1, &address);
-    uint32_t  rn = registerValue(address.line[0]);
+    uint32_t rn = registerValue(address.line[0]);
     rn <<= 16;
     machineCode |= rn;
+    //Remove ']'
+    tokens->line[2][strlen(tokens->line[2]) - 1] = '\0';
+    tokenInstruction(tokens->line[2] + 1, &address);
     //Of form [RN]
-    if (address.numTokens == 1){
+    if (address.numTokens == 1) {
       storeConstant(&machineCode, 0);
-    }
-
-    else if (address.line[1][0] == '#')
-      storeConstant(&machineCode,stringToNum(address.line[1]+1));
+    } else if (address.line[1][0] == '#')
+      storeConstant(&machineCode, stringToNum(address.line[1] + 1));
 
     //Shift register
-    else{
+    else {
       int registerPos = 0;
 
       if (address.line[1][0] == '-') {
@@ -188,32 +218,49 @@ uint32_t convertSingleDataTransfer (struct tokenedInstruction *tokens, struct sy
       }
 
       //No shifting
-      if (address.numTokens == 2){
+      if (address.numTokens == 2) {
         storeShiftRegister(&machineCode, address.line[1] + registerPos, NULL, NULL);
       }
 
       else
         storeShiftRegister(&machineCode, address.line[1] + registerPos, address.line[2], address.line[3]);
-
     }
-
   }
 
-  /*
-    //Post indexing, of form [RN], <#expr> or [RN], shift Reg
+  //post indexing
   else{
-    tokens->line[0][strlen(tokens->line[0])-1] = '\0';
-    uint32_t rn = registerValue(tokens->line[0]+1);
+    int rnPos = 2;
+    int regExprPos = 3;
+    int shiftName = 4;
+    int shiftExprReg = 5;
+
+    tokens->line[rnPos][strlen(tokens->line[rnPos])-1] = '\0';
+    uint32_t rn = registerValue(tokens->line[rnPos]+1);
     rn <<= 16;
     machineCode |= rn;
 
+    if (tokens->line[regExprPos][0] == '#'){
+      storeConstant(&machineCode, stringToNum(tokens->line[regExprPos]+1));
+    }
 
-  }*/
+    else{
+      int registerPos = 0;
+      if (tokens->line[regExprPos][0] == '-'){
+        setBit(&machineCode, 23, 0);
+        registerPos = 1;
+      }
 
+      //No shifting
+      if (tokens->numTokens == 4)
+        storeShiftRegister(&machineCode, tokens->line[regExprPos] + registerPos, NULL, NULL);
 
+      else
+        storeShiftRegister(&machineCode, tokens->line[regExprPos] + registerPos,
+                           tokens->line[shiftName], tokens->line[shiftExprReg]);
+    }
+  }
 
   return machineCode;
-
 }
 
 int storeConstant (uint32_t* machineCode, uint32_t val){
@@ -241,9 +288,46 @@ int storeConstant (uint32_t* machineCode, uint32_t val){
 
 }
 
-void storeShiftRegister (uint32_t* machineCode, char *baseReg, char *shiftName, char *regOrExpr){
+void setRegAndOffset (uint32_t *machineCode, char *reg, char *expr){
+  assert (expr[0] == '#');
+  uint32_t  bReg = registerValue(reg);
+  bReg <<= 16;
+  *machineCode |= bReg;
+  storeConstant(machineCode, stringToNum(expr+1));
+}
+
+void storeShiftRegister (uint32_t *machineCode, char *baseReg, char *shiftName, char *regOrExpr){
+
+  uint32_t  bReg = registerValue(baseReg);
+  *machineCode |= bReg;
+
+  if (!shiftName && !regOrExpr)
+    return;
+
+  if (strcmp(shiftName, "lsr") == 0)
+    setBit(machineCode,5,1);
+
+  else if (strcmp(shiftName, "asr") == 0)
+    setBit(machineCode,6,1);
+
+  else if (strcmp(shiftName, "ror") == 0){
+    setBit(machineCode,5,1);
+    setBit(machineCode,6,1);
+  }
 
 
+  if (regOrExpr[0] == 'r'){
+    setBit(machineCode,4,1);
+    uint32_t shiftReg = registerValue(regOrExpr);
+    shiftReg <<= 8;
+    *machineCode |= shiftReg;
+  }
+
+  else{
+    uint32_t constant = stringToNum(regOrExpr+1);
+    constant <<= 7;
+    *machineCode |= constant;
+  }
 
 }
 
@@ -300,22 +384,16 @@ int findInsNum(char *ins) {
   return -1;
 }
 
-size_t convertDataProcess(struct assemblyCode *input, FILE *fout) {
-  struct symbolTable *table = setupTable();
-  struct tokenedCode* tokens = setupTokens(input);
+uint32_t convertDataProcess(struct tokenedInstruction *tokens) {
   char *binString;
-  binString=data_process_ins_assembler(tokens->code->line,tokens->code->numTokens,findInsNum(tokens->code->line[0]));
-  size_t result;
-  result = (size_t) strtol(binString, NULL, 2);
+  binString = data_process_ins_assembler(tokens->line,tokens->numTokens,findInsNum(tokens->line[0]));
+  uint32_t result = (uint32_t) strtol(binString, NULL, 2);
   return result;
 }
 
-size_t convertMultiply(struct assemblyCode *input, FILE *fout) {
-  struct symbolTable *table = setupTable();
-  struct tokenedCode* tokens = setupTokens(input);
+uint32_t convertMultiply(struct tokenedInstruction* tokens) {
   char *binString;
-  binString=multiply_ins_assembler(tokens->code->line,tokens->code->numTokens,findInsNum(tokens->code->line[0]));
-  size_t result;
-  result = (size_t) strtol(binString, NULL, 2);
+  binString= multiply_ins_assembler(tokens->line,tokens->numTokens,findInsNum(tokens->line[0]));
+  uint32_t result = (uint32_t) strtol(binString, NULL, 2);
   return result;
 }
