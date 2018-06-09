@@ -11,7 +11,7 @@
 #include "../Utilities/bit_operations_utilities.h"
 #include "../Emulator/processor_data_handling.h"
 #include "symbol_table_tokens.h"
-#include "binary_conversion.h"
+
 
 //8 bits (whole words are being processed at a time here)
 #define PC_AHEAD 2
