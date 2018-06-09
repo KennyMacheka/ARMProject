@@ -82,13 +82,16 @@ size_t convert(struct assemblyCode *input, FILE *fout){
         char *expr = tokens->code[i].line[2];
         char *rn = tokens->code[i].line[1];
         strcpy(tokens->code[i].line[0],"mov");
-        tokens->code[i].line = realloc(tokens->code[i].line, 5);
-        tokens->code[i].line[4] = (char *) malloc(strlen(expr));
+        tokens->code[i].line = realloc(tokens->code[i].line, sizeof(char *)*5);
+        tokens->code[i].line[3] = NULL;
+        tokens->code[i].line[4] = NULL;
+        tokens->code[i].line[4] = (char *) calloc(strlen(expr)+1, 1);
         strcpy(tokens->code[i].line[4],expr);
-        tokens->code[i].line[3] = (char *) malloc(3);
+        tokens->code[i].line[3] = (char *) calloc(4, 1);
         strcpy(tokens->code[i].line[3], "lsl");
-        tokens->code[i].line[2] = realloc(tokens->code[i].line[2],strlen(rn));
+        tokens->code[i].line[2] = realloc(tokens->code[i].line[2],strlen(rn)+1);
         strcpy(tokens->code[i].line[2], rn);
+        tokens->code[i].numTokens = 5;
       }
 
       //Instruction is data processing
@@ -97,20 +100,26 @@ size_t convert(struct assemblyCode *input, FILE *fout){
     machineLines++;
   }
 
-  freeSymbolTable(&table);
-  freeTokenedCode(&tokens);
 
+  int minusLabels = machineLines;
+  int machineCodeSize;
   if (machineLines+storedConstants > input->numLines){
     machineLines = input->numLines +(machineLines+storedConstants - input->numLines);
-    machineCode = realloc(machineCode, machineLines);
+    machineCode = realloc(machineCode, sizeof(uint32_t )*machineLines);
+    machineCodeSize = machineLines;
+  }
+
+  else{
+    machineCodeSize = machineLines+storedConstants;
   }
 
   for (int i = 0; i<storedConstants; i++)
-    machineCode[input->numLines+i] = constants[i];
+    machineCode[minusLabels+i] = constants[i];
 
-  outputMachineCode(machineCode, machineLines);
-  //Check endianness of this
-  return fwrite(machineCode, 4, machineLines, fout);
+
+  freeSymbolTable(&table);
+  freeTokenedCode(&tokens);
+  return fwrite(machineCode, 4, machineCodeSize, fout);
 
 }
 
@@ -231,7 +240,8 @@ uint32_t convertDataProcess(struct tokenedInstruction *tokens){
   else {
     //Check whether  shiftname and shift register are present
     if ((type == COMPUTES_RESULT && tokens->numTokens == 6) ||
-        (type == SET_CPSR && tokens->numTokens == 5)) {
+        (type == SET_CPSR && tokens->numTokens == 5) ||
+        (type == SINGLE_OPERAND && tokens->numTokens == 5)) {
       storeShiftRegister(&result, tokens->line[rnPos + 1], tokens->line[rnPos + 2],
                          tokens->line[rnPos + 3]);
     }
