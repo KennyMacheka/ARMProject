@@ -50,9 +50,10 @@ uint32_t rotateRight(uint32_t num, int amount) {
 
 uint32_t rotateLeft(uint32_t num, int amount){
 
-  uint32_t farRight = (uint32_t )1 << 31;
+  uint32_t maxOne = 1 << 31;
   for (int i = 0; i<amount; i++){
-    uint32_t leftMost = num & farRight;
+    uint32_t leftMost = num & maxOne;
+    leftMost >>= 31;
     num <<= 1;
     num += leftMost;
   }

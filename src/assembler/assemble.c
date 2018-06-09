@@ -5,7 +5,7 @@
 #include <string.h>
 #include <math.h>
 #include "file_handling.h"
-#include "symbol_table_tokens.h"
+#include "convert_instructions.h"
 /*
  *1. read line store in string
  *2. add labels to symbol table
@@ -37,12 +37,9 @@ int main(int argc, char **argv) {
   struct assemblyCode *input = readFile(fin);
   fclose(fin);
 
-  struct tokenedCode *tokens = setupTokens(input);
-
-
+  convert(input, fout);
   freeCode(&input);
-
-
+  fclose(fout);
 
   return EXIT_SUCCESS;
 }

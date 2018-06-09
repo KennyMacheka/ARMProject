@@ -5,6 +5,7 @@
 #include <string.h>
 #include <math.h>
 #include "binary_conversion.h"
+#include "../Emulator/processor_data_handling.h"
 
 
 
@@ -120,9 +121,14 @@ void immToBinary(char imm[], char result[]) {
    into a string represents the number in 4-bit binary format
 */
 void regNumToBinary(char regNum[],char result[]) {
-  assert(regNum[0] == 'r');
+  //pre regNum is not LR, SR or CPSR
+
   uint16_t num = 0;
-  if(regNum[2]){ //when for Rn, n>=10
+
+  if (strcmp("PC", regNum) == 0)
+    num =  (uint16_t ) PC;
+
+  else if(regNum[2]){ //when for Rn, n>=10
     num = 10;
     num += ((int)regNum[2] - (int)'0');
   } else {
@@ -306,6 +312,7 @@ char* multiply_ins_assembler(char **tokenised_ins, int tokenCount, int insNum) {
     regNumToBinary(tokenised_ins[4], &result[16]);//Rn
   } else {
     fprintf(stderr, "Invalid multiply instruction.\n");//return?
+    return NULL;
   }
   return result;
 }

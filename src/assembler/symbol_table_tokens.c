@@ -57,24 +57,33 @@ void tokenInstruction (char *instruction, struct tokenedInstruction *tokens){
   const char* delims = " ,";
 
   char *token = strtok_r(rest, delims, &rest);
+
   int shouldBreak = 0;
   while (token != NULL){
+
     tokens->line = realloc(tokens->line,sizeof(char *)*(tokens->numTokens+1));
     tokens->line[tokens->numTokens] = (char *) malloc(strlen(token));
     strcpy(tokens->line[tokens->numTokens++],token);
 
-    if (shouldBreak)
+
+    if (shouldBreak == 2)
       break;
 
     //If instruction has '[' we don't want to break up tokens anymore
     //A valid assembler program will have '[' at the end of an instruction so this will be valid
-    token = strtok_r(rest, delims, &rest);
-    if (strlen(rest)!= 0){
-      if (rest[0] == '[') {
-        token = rest;
-        shouldBreak = 1;
+    else if (shouldBreak == 0) {
+      token = strtok_r(rest, delims, &rest);
+      if (strlen(rest) != 0) {
+        if (rest[0] == '[')
+          shouldBreak = 1;
       }
     }
+
+    else if (shouldBreak == 1) {
+      token = rest;
+      shouldBreak = 2;
+    }
+
   }
 
   free(copy);
