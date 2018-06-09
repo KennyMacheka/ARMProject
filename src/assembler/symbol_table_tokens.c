@@ -73,9 +73,16 @@ void tokenInstruction (char *instruction, struct tokenedInstruction *tokens){
     //A valid assembler program will have '[' at the end of an instruction so this will be valid
     else if (shouldBreak == 0) {
       token = strtok_r(rest, delims, &rest);
+      while (*rest == ' ' || *rest == ',')
+        rest++;
       if (strlen(rest) != 0) {
-        if (rest[0] == '[')
-          shouldBreak = 1;
+        //If at end, we can take all of rest next loop
+        //Need this to not prematurely take all of rest like in [],some value
+        if (rest[0] == '[') {
+          char *penultimate = strchr(rest, ']');
+          if (*(penultimate+1) == '\0')
+            shouldBreak = 1;
+        }
       }
     }
 

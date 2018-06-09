@@ -393,8 +393,8 @@ uint32_t convertSingleDataTransfer (struct tokenedInstruction *tokens, struct sy
       int registerPos = 0;
 
       if (address.line[1][0] == '-') {
-      setBit(&machineCode, 23, 0);
-      registerPos = 1;
+        setBit(&machineCode, 23, 0);
+        registerPos = 1;
       }
 
       //No shifting
@@ -406,6 +406,7 @@ uint32_t convertSingleDataTransfer (struct tokenedInstruction *tokens, struct sy
 
      }
   }
+
 
   //post indexing
   else{
@@ -429,13 +430,14 @@ uint32_t convertSingleDataTransfer (struct tokenedInstruction *tokens, struct sy
     }
 
     else{
+      setBit(&machineCode,25,1);
       int registerPos = 0;
       if (tokens->line[regExprPos][0] == '-'){
         setBit(&machineCode, 23, 0);
         registerPos = 1;
       }
 
-      //No shifting
+      //No actual shifting
       if (tokens->numTokens == 4)
         storeShiftRegister(&machineCode, tokens->line[regExprPos] + registerPos, NULL, NULL);
 
