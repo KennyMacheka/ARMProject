@@ -46,9 +46,13 @@ size_t convert(struct assemblyCode *input, FILE *fout){
     colon = strchr(input->code[i],':');
     if (colon ){
       *colon = '\0';
-      insert(table, i, input->code[i]);
+      insert(table, machineLines , input->code[i]);
     }
+    else
+      machineLines++;
   }
+
+  machineLines = 0;
 
   for (int i = 0; i<input->numLines; i++){
     char *op = tokens->code[i].line[0];
@@ -296,13 +300,12 @@ uint32_t convertBranch (struct tokenedInstruction *tokens, struct symbolTable* t
   }
 
   offset = address - ((uint32_t) pos) - PC_AHEAD;
+  offset *= 4;
   offset = shortenBits(offset, 26);
   //We now have a signed offset (I used uint32_t as bit shifting is defined by the C standard)
   offset >>= 2;
+  machineCode |= offset;
 
-  for (int i = 23; i>= 0; i--){
-    setBit(&machineCode,i,isolateBits(offset, i, i, 0));
-  }
 
   return machineCode;
 
