@@ -1,7 +1,5 @@
 #This the the canonical lab .gitignore file
-
-CMakeLists.txt
-
+.idea
 #ignore test dir
 arm11_1718_testsuite/
 

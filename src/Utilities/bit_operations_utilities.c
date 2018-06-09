@@ -48,6 +48,20 @@ uint32_t rotateRight(uint32_t num, int amount) {
   return num;
 }
 
+uint32_t rotateLeft(uint32_t num, int amount){
+
+  uint32_t maxOne = 1 << 31;
+  for (int i = 0; i<amount; i++){
+    uint32_t leftMost = num & maxOne;
+    leftMost >>= 31;
+    num <<= 1;
+    num += leftMost;
+  }
+
+  return num;
+
+}
+
 uint32_t isolateBits(uint32_t num, int end, int start, int newPos) {
   //This function isolates a specific segment of bits in a 32 bit word
   //It then moves the most significant bit of this isolated segment to a specific position
