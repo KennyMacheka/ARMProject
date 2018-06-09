@@ -15,7 +15,9 @@
 
 //8 bits (whole words are being processed at a time here)
 #define PC_AHEAD 2
+#define MEMORY_ADDRESSES_PER_WORD 4
 
+uint32_t  shortenBits (uint32_t, int);
 uint32_t stringToNum (char *);
 uint32_t convertBranch (struct tokenedInstruction *, struct symbolTable * , int);
 uint32_t convertSingleDataTransfer (struct tokenedInstruction *, struct symbolTable *,
@@ -294,6 +296,7 @@ uint32_t convertBranch (struct tokenedInstruction *tokens, struct symbolTable* t
   }
 
   offset = address - ((uint32_t) pos) - PC_AHEAD;
+  offset = shortenBits(offset, 26);
   //We now have a signed offset (I used uint32_t as bit shifting is defined by the C standard)
   offset >>= 2;
 
@@ -336,11 +339,13 @@ uint32_t convertSingleDataTransfer (struct tokenedInstruction *tokens, struct sy
     uint32_t constant = stringToNum(tokens->line[2]+1);
 
     if (constant > 0xFF){
-      int dataPos = ((int)numInstructions-table->size)+storedConstants;
+      uint32_t  pcAddress = pos + PC_AHEAD;
       constants = realloc(constants,sizeof(uint32_t)*(storedConstants+1));
       constants[storedConstants++] = constant;
 
-      offset = (((uint32_t )numInstructions-table->size) + storedConstants -1) - pos + PC_AHEAD;
+      //The expression in brackets is the memory location of the stored constant
+      offset = (((uint32_t )numInstructions-table->size) + storedConstants -1) - pcAddress;
+      offset *= MEMORY_ADDRESSES_PER_WORD;
 
       uint32_t pc = (uint32_t) PC;
       //PC is rn
@@ -374,7 +379,12 @@ uint32_t convertSingleDataTransfer (struct tokenedInstruction *tokens, struct sy
 
 
      else if (address.line[1][0] == '#'){
-       machineCode |= stringToNum(address.line[1] + 1);
+       int offset = 0;
+       if (address.line[1][1] == '-'){
+         setBit(&machineCode,23,0);
+         offset = 1;
+       }
+       machineCode |= stringToNum(address.line[1] + 1 + offset);
      }
 
     //Shift register
@@ -410,7 +420,12 @@ uint32_t convertSingleDataTransfer (struct tokenedInstruction *tokens, struct sy
     machineCode |= rn;
 
     if (tokens->line[regExprPos][0] == '#'){
-      machineCode |= stringToNum(tokens->line[regExprPos]+1);
+      int offset = 0;
+      if (tokens->line[regExprPos][1] == '-'){
+        setBit(&machineCode,23,0);
+        offset = 1;
+      }
+      machineCode |= stringToNum(tokens->line[regExprPos]+1+offset);
     }
 
     else{
@@ -523,6 +538,15 @@ uint32_t registerValue (char* r){
 
   return UINT32_MAX;
 
+}
+
+uint32_t  shortenBits (uint32_t num, int size){
+  //If num is meant to be a signed number <= size bits, we remove all higher bits
+  uint32_t  result = num;
+  for (int i = 31; i>= size; i--)
+    setBit(&result,i,0);
+
+  return result;
 }
 
 uint32_t stringToNum (char *str){
