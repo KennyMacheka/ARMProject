@@ -5,21 +5,57 @@
 #ifndef ARM11_35_CHESS_ENGINE_H
 #define ARM11_35_CHESS_ENGINE_H
 #include <stdint.h>
+#include <stdbool.h>
+
+#define BOARD_SIZE 8
+#define INITIAL_PIECES 16
+
 enum PIECES{
+  BLANK,
   PAWN,
   KNIGHT,
   BISHOP,
+  ROOK,
   QUEEN,
   KING
 };
 
-struct game{
-
-  uint8_t board[8][8];
-  uint8_t  numWhitePieces;
-  uint8_t  numBlackpieces;
-
+enum COLOUR{
+  NO_COLOUR,
+  BLACK,
+  WHITE
 };
+
+struct Piece{
+  enum PIECES piece;
+  enum COLOUR colour;
+  bool moved;
+  int row;
+  int col;
+};
+
+struct Game{
+
+  struct Piece board[BOARD_SIZE][BOARD_SIZE];
+  struct Piece *whitePieces[INITIAL_PIECES];
+  struct Piece *blackPieces[INITIAL_PIECES];
+  uint8_t  numWhitePieces;
+  uint8_t  numBlackPieces;
+  bool gameOver;
+};
+
+struct Move{
+  int startRow;
+  int startCol;
+
+  int endRow;
+  int endCol;
+  struct Piece *piece;
+};
+
+struct Game *setupGame ();
+
+bool makeMove (struct Game *game, struct Move *move);
 
 
 #endif //ARM11_35_CHESS_ENGINE_H

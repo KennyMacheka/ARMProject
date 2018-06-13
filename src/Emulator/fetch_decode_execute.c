@@ -443,7 +443,7 @@ int dataProcessing (struct ARM_Processor *processor, uint32_t i, uint32_t opCode
     else
       carryOut = 0;
   }
-
+  
   else if (opCode == RSB) {
     result = operand2 - rnContents;
 
