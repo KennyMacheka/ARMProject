@@ -28,8 +28,11 @@ void makeMove (struct Game *game, struct Move *move);
 struct Game *setupGame (){
   struct Game *game = (struct Game *) malloc(sizeof(struct Game));
   game->matchState = NOT_OVER;
+  game->checkState = NO_CHECK
   game->numBlackPieces = INITIAL_PIECES;
   game->numWhitePieces = INITIAL_PIECES;
+
+  return game;
 
 }
 
@@ -50,15 +53,33 @@ bool requestMove (struct Game *game, struct Move *move){
 void makeMove (struct Game *game, struct Move *move){
 
   enum COLOUR enemy = move->piece->colour == WHITE ? BLACK : WHITE;
-  uint8_t *numEnemyPieces = move->piece->colour == WHITE ? &game->numBlackPieces : &game->numWhitePieces;
+  uint8_t *numEnemyPieces = move->piece->colour == WHITE ?
+                                                  &game->numBlackPieces : &game->numWhitePieces;
+
+  struct Piece *enemyArray = move->piece->colour == WHITE ?
+                                                    game->blackPieces : game->whitePieces;
 
   if (game->board[move->endRow][move->endCol].colour == enemy){
-    game->numWhitePieces--;
-    for (int i = 0)
+    *numEnemyPieces = *numEnemyPieces - (uint8_t )1;
+    bool foundPiece = false;
+    //Move captured piece to the end of the array
+    for (int i = 0; i<INITIAL_PIECES-1; i++){
+      if (!foundPiece) {
+        if (enemyArray[i].row == move->endRow && enemyArray[i].col == move->endCol) {
+          foundPiece = true;
+        }
+      }
+
+      if (foundPiece){
+        struct Piece temp = enemyArray[i];
+        enemyArray[i] = enemyArray[i+1];
+        enemyArray[i+1] = temp;
+      }
+    }
   }
 
   //Once a move has been made, we need to check if the king of the opposite colour is in check
-  //If king is in check, we then check if there are any valid moves that can be made by the other colour
+  //To check for check we need to get all possible moves and check if one of them fits king's coordinates
   //If there aren't, game is over
   //We also check if there are any moves that can be made even if the opposite colour is not in check
   //If there aren't, then statemate

@@ -17,6 +17,12 @@ enum MATCH_STATUS{
   STALEMATE
 };
 
+enum CHECK_STATUS{
+  NO_CHECK,
+  WHITE_CHECK,
+  BLACK_CHECK
+};
+
 enum PIECES{
   BLANK,
   PAWN,
@@ -49,6 +55,7 @@ struct Game{
   uint8_t  numWhitePieces;
   uint8_t  numBlackPieces;
   enum MATCH_STATUS matchState;
+  enum CHECK_STATUS checkState;
 };
 
 struct Move{
