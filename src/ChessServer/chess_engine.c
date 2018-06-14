@@ -146,7 +146,6 @@ bool isMoveValid (struct Game *game, struct Move *move){
       possibleMoves = bishopMoves(game, move->piece);
       break;
 
-
     case ROOK:
       possibleMoves = rookMoves(game, move->piece);
       break;
@@ -293,6 +292,8 @@ struct PossibleMoves *knightMoves (struct Game *game, struct Piece *knight){
   enum COLOUR enemy = knight->colour == WHITE ? BLACK:WHITE;
   struct PossibleMoves *moves = setupMovesStruct();
   
+  int row = knight->row;
+  int col = knight->col;
   if (coordWithinBoard(row+2, col+1) && game->board[row+2][col+1].colour != knight->colour) {
     addMove(moves, knight, row+2, col+1);
   }
@@ -368,7 +369,36 @@ struct PossibleMoves *kingMoves (struct Game *game, struct Piece *king){
     return NULL;
 
   struct PossibleMoves *moves = setupMovesStruct();
-
+  
+  if (coordWithinBoard(row+1, col) && game->board[row+1][col].colour != king->colour) {
+    addMove(moves, king, row+1, col);
+  }
+  if (coordWithinBoard(row+1, col+1) && game->board[row+1][col+1].colour != king->colour) {
+    addMove(moves, king, row+1, col+1);
+  }
+  if (coordWithinBoard(row, col+1) && game->board[row][col+1].colour != king->colour) {
+    addMove(moves, king, row, col+1);
+  }
+  if (coordWithinBoard(row-1, col) && game->board[row-1][col].colour != king->colour) {
+    addMove(moves, king, row-1, col);
+  }
+  if (coordWithinBoard(row-1, col-1) && game->board[row-1][col-1].colour != king->colour) {
+    addMove(moves, king, row-1, col-1);
+  }
+  if (coordWithinBoard(row, col-1) && game->board[row][col-1].colour != king->colour) {
+    addMove(moves, king, row, col-1);
+  }
+  if (coordWithinBoard(row+1, col-1) && game->board[row+1][col-1].colour != king->colour) {
+    addMove(moves, king, row+1, col-1);
+  }
+ 
+  // CASTLING 
+  if (king->colour == WHITE) {
+    
+  } else {
+  
+  }
+  
   return moves;
 }
 
