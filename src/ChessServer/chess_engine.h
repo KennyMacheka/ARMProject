@@ -9,6 +9,8 @@
 
 #define BOARD_SIZE 8
 #define INITIAL_PIECES 16
+#define WHITE_PAWN_PROMOTION_ROW  7
+#define BLACK_PAWN_PROMOTION_ROW  0
 
 enum MATCH_STATUS{
   NOT_OVER,
@@ -57,6 +59,7 @@ struct Game{
   enum MATCH_STATUS matchState;
   enum CHECK_STATUS checkState;
   uint8_t fiftyMoveCount;
+  enum COLOUR fiftyMoveSync;
 };
 
 struct Move{
@@ -65,8 +68,16 @@ struct Move{
 
   int endRow;
   int endCol;
+
+  int startRow2;
+  int startCol2;
+
+  int endRow2;
+  int endCol2;
+
+  bool isCastling;
   struct Piece *piece;
-  enum PIECE promotionPiece;
+  enum PIECES promotionPiece;
 };
 
 struct PossibleMoves{

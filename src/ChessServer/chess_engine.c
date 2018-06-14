@@ -27,6 +27,7 @@ struct Game *setupGame (){
   game->numBlackPieces = INITIAL_PIECES;
   game->numWhitePieces = INITIAL_PIECES;
   game->fiftyMoveCount = 0;
+  game->fiftyMoveSync = BLACK;
 
   int whiteRow = 0;
   int blackRow = 7;
@@ -89,6 +90,8 @@ bool requestMove (struct Game *game, struct Move *move){
 }
 
 void makeMove (struct Game *game, struct Move *move){
+  //pre: move->piece must be a pointer to one of the pieces in the array of pieces
+  //i.e. game->whitePieces and game->blackPieces
 
   enum COLOUR enemy = move->piece->colour == WHITE ? BLACK : WHITE;
   uint8_t *numEnemyPieces = move->piece->colour == WHITE ?
@@ -97,7 +100,11 @@ void makeMove (struct Game *game, struct Move *move){
   struct Piece *enemyArray = move->piece->colour == WHITE ?
                                                     game->blackPieces : game->whitePieces;
 
+
   if (game->board[move->endRow][move->endCol].colour == enemy){
+    game->fiftyMoveCount = 0;
+    //Resync fifty move rule
+    game->fiftyMoveSync = move->piece->colour;
     *numEnemyPieces = *numEnemyPieces - (uint8_t )1;
     bool foundPiece = false;
     //Move captured piece to the end of the array
@@ -114,10 +121,31 @@ void makeMove (struct Game *game, struct Move *move){
         enemyArray[i+1] = temp;
       }
     }
+  }else{
+    //Fifty move rule (no capture, and pawn hasn't been moved)
+    if (move->piece->piece != PAWN && move->piece->colour == game->fiftyMoveSync)
+      game->fiftyMoveCount++;
   }
+
+  move->piece->row = move->endRow;
+  move->piece->col = move->endCol;
+
+  //Handle promotion
+  if (move->piece->piece == PAWN){
+    game->fiftyMoveCount = 0;
+    if ((move->piece->colour == WHITE && move->endRow == WHITE_PAWN_PROMOTION_ROW) ||
+        (move->piece->colour == BLACK && move->endRow == BLACK_PAWN_PROMOTION_ROW)){
+      move->piece->piece = move->promotionPiece;
+    }
+
+  }
+
+  game->board[move->endRow][move->endCol] = *move->piece;
+
 
   //Once a move has been made, we need to check if the king of the opposite colour is in check
   //To check for check we need to get all possible moves and check if one of them fits king's coordinates
+
   //If there aren't, game is over
   //We also check if there are any moves that can be made even if the opposite colour is not in check
   //If there aren't, then statemate
@@ -204,13 +232,12 @@ struct PossibleMoves *pawnMoves (struct Game *game, struct Piece *pawn){
   //Then at the end of the function we take each move in turn...
   //...and check to see if the king goes in check. If it does, then move is invalid and we filter it out
 
-  if (pawn->colour == BLACK){
+  if (pawn->colour == BLACK && pawn->row-1 >= 0){
 
     //Move black piece forward by 1
-    if (pawn->row -1 >= 0){
-      if (game->board[pawn->row-1][pawn->col].colour == NO_COLOUR){
-        addMove(moves, pawn, pawn->row-1, pawn->col);
-      }
+
+    if (game->board[pawn->row-1][pawn->col].colour == NO_COLOUR){
+      addMove(moves, pawn, pawn->row-1, pawn->col);
     }
 
     //Move black piece forward by 2 if it hasn't moved yet
@@ -219,17 +246,17 @@ struct PossibleMoves *pawnMoves (struct Game *game, struct Piece *pawn){
         addMove(moves, pawn, pawn->row-2, pawn->col);
       }
     }
-    //Left diagonal
+    //right diagonal
     if (game->board[pawn->row-1][pawn->col+1].colour == enemy){
       addMove(moves, pawn, pawn->row-1, pawn->col+1);
     }
 
-    //Right diagonal
+    //left diagonal
     if (game->board[pawn->row-1][pawn->col-1].colour == enemy){
       addMove(moves, pawn, pawn->row-1, pawn->col-1);
     }
 
-  } else {
+  } else if (pawn->colour == WHITE && pawn->row+1 < BOARD_SIZE) {
     //Move white piece forward by 1
     if (pawn->row +1 < BOARD_SIZE){
       if (game->board[pawn->row+1][pawn->col].colour == NO_COLOUR){
@@ -245,12 +272,12 @@ struct PossibleMoves *pawnMoves (struct Game *game, struct Piece *pawn){
     }
 
     //right diagonal
-    if (game->board[pawn->row+1][pawn->col+1].colour == enemy){
+    if (game->board[pawn->row+1][pawn->col-1].colour == enemy){
       addMove(moves, pawn, pawn->row+1, pawn->col+1);
     }
 
     //left diagonal
-    if (game->board[pawn->row+1][pawn->col-1].colour == enemy){
+    if (game->board[pawn->row+1][pawn->col+1].colour == enemy){
       addMove(moves, pawn, pawn->row+1, pawn->col-1);
     }
   }
@@ -377,44 +404,47 @@ void getMovesDiagonal (struct Game *game, struct Piece *piece, struct PossibleMo
   int row = piece->row;
   int col = piece->col;
 
-  bool blocked_topLeft = 0;
-  bool blocked_botLeft = 0;
-  bool blocked_topRight = 0;
-  bool blocked_botRight = 0;
+  bool blocked_topLeft = false;
+  bool blocked_botLeft = false;
+  bool blocked_topRight = false;
+  bool blocked_botRight = false;
 
   for (int n = 1; n <= BOARD_SIZE; n++) {
     if (!blocked_topLeft && coordWithinBoard(row+n, col+n)) {
       if (game->board[row+n][col+n].colour == NO_COLOUR) {
         addMove(moves, piece, row+n, col+n);
       } else {
-        blocked_topLeft = 1;
+        blocked_topLeft = true;
         if (game->board[row+n][col+n].colour == enemy) {
           addMove(moves, piece, row+n, col+n);
         }
       }
-    } else if (!blocked_botLeft && coordWithinBoard(row-n, col+n)) {
+    }
+    if (!blocked_botLeft && coordWithinBoard(row-n, col+n)) {
       if (game->board[row-n][col+n].colour == NO_COLOUR) {
         addMove(moves, piece, row-n, col+n);
       } else {
-        blocked_botLeft = 1;
+        blocked_botLeft = true;
         if (game->board[row-n][col+n].colour == enemy) {
           addMove(moves, piece, row-n, col+n);
         }
       }
-    } else if (!blocked_topRight && coordWithinBoard(row+n, col-n)) {
+    }
+    if (!blocked_topRight && coordWithinBoard(row+n, col-n)) {
       if (game->board[row+n][col-n].colour == NO_COLOUR) {
         addMove(moves, piece, row+n, col-n);
       } else {
-        blocked_topRight = 1;
+        blocked_topRight = true;
         if (game->board[row+n][col-n].colour == enemy) {
           addMove(moves, piece, row+n, col-n);
         }
       }
-    } else if (!blocked_botRight &&  coordWithinBoard(row-n, col-n)) {
+    }
+    if (!blocked_botRight &&  coordWithinBoard(row-n, col-n)) {
       if (game->board[row-n][col-n].colour == NO_COLOUR) {
         addMove(moves, piece, row-n, col-n);
       } else {
-        blocked_botRight = 1;
+        blocked_botRight = true;
         if (game->board[row-n][col-n].colour == enemy) {
           addMove(moves, piece, row-n, col-n);
         }
@@ -439,69 +469,78 @@ void getMovesColumn (struct Game *game, struct Piece *piece, struct PossibleMove
   int row = piece->row;
   int col = piece->col;
 
-  bool blocked_top = 0;
-  bool blocked_left = 0;
-  bool blocked_right = 0;
-  bool blocked_bot = 0;
+  bool blocked_top = false;
+  bool blocked_left = false;
+  bool blocked_right = false;
+  bool blocked_bot = false;
 
-  for (int n = 1; n <= BOARD_SIZE; n++) {
+  for (int n = 1; n < BOARD_SIZE; n++) {
     if (!blocked_top && coordWithinBoard(row+n, col)) {
       if (game->board[row+n][col].colour == NO_COLOUR) {
         addMove(moves, piece, row+n, col);
       } else {
-        blocked_top = 1;
+        blocked_top = true;
         if (game->board[row+n][col].colour == enemy) {
           addMove(moves, piece, row+n, col);
         }
       }
-    } else if (!blocked_left && coordWithinBoard(row, col+n)) {
+    }
+    if (!blocked_right && coordWithinBoard(row, col+n)) {
       if (game->board[row][col+n].colour == NO_COLOUR) {
         addMove(moves, piece, row, col+n);
       } else {
-        blocked_left = 1;
+        blocked_right = true;
         if (game->board[row][col+n].colour == enemy) {
           addMove(moves, piece, row, col+n);
         }
       }
-    } else if (!blocked_right && coordWithinBoard(row, col-n)) {
+    }
+    if (!blocked_left && coordWithinBoard(row, col-n)) {
       if (game->board[row][col-n].colour == NO_COLOUR) {
         addMove(moves, piece, row, col-n);
       } else {
-        blocked_right = 1;
+        blocked_left = true;
         if (game->board[row][col-n].colour == enemy) {
           addMove(moves, piece, row, col-n);
         }
       }
-    } else if (!blocked_bot &&  coordWithinBoard(row-n, col)) {
+    }
+    if (!blocked_bot &&  coordWithinBoard(row-n, col)) {
       if (game->board[row-n][col].colour == NO_COLOUR) {
         addMove(moves, piece, row-n, col);
       } else {
-        blocked_bot = 1;
+        blocked_bot = true;
         if (game->board[row-n][col].colour == enemy) {
           addMove(moves, piece, row-n, col);
         }
       }
     }
+
+    if (blocked_bot && blocked_left && blocked_right && blocked_top)
+      break;
   }
 
 }
 
 void addMove (struct PossibleMoves *moves, struct Piece *piece, int endRow, int endCol){
   moves->moves = realloc(moves->moves, sizeof(struct Move)*(moves->numMoves+1));
+  moves->moves[moves->numMoves].isCastling = false;
   moves->moves[moves->numMoves].piece = piece;
   moves->moves[moves->numMoves].startRow = piece->row;
   moves->moves[moves->numMoves].startCol = piece->col;
   moves->moves[moves->numMoves].endRow = endRow;
   moves->moves[moves->numMoves].endCol = endCol;
-
+  moves->numMoves++;
 }
+
+
 
 struct PossibleMoves *filterPossibleMoves(struct Game *game, struct PossibleMoves *moves){
 
     /**Loops through given moves and checks to see what moves put a King in check*/
     for (int i = 0; i < moves->numMoves; i++){
       //Make a deep copy of game before making move
-      Game *copy = setupGame();
+      struct Game *copy = setupGame();
 
       makeMove(game, &moves->moves[i]);
     }
