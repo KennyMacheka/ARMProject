@@ -68,60 +68,60 @@ int singleDataTransfer(struct ARM_Processor *processor, uint32_t i, uint32_t p, 
 int branch(struct ARM_Processor *processor, uint32_t offset);
 
 struct execute {
-  bool terminate;
-  bool ready;
-  unsigned int condition;
+    bool terminate;
+    bool ready;
+    unsigned int condition;
 
-  int operation;
+    int operation;
 
-  union execArgs {
-    struct data {
-      uint32_t i;
-      uint32_t opCode;
-      uint32_t s;
-      uint32_t rn;
-      uint32_t rd;
-      uint32_t operand2;
-    } dataArgs;
+    union execArgs {
+        struct data {
+            uint32_t i;
+            uint32_t opCode;
+            uint32_t s;
+            uint32_t rn;
+            uint32_t rd;
+            uint32_t operand2;
+        } dataArgs;
 
-    struct mult {
-      uint32_t a;
-      uint32_t s;
-      uint32_t rd;
-      uint32_t rn;
-      uint32_t rs;
-      uint32_t rm;
-    } multArgs;
+        struct mult {
+            uint32_t a;
+            uint32_t s;
+            uint32_t rd;
+            uint32_t rn;
+            uint32_t rs;
+            uint32_t rm;
+        } multArgs;
 
-    struct singleData {
-      uint32_t i;
-      uint32_t p;
-      uint32_t u;
-      uint32_t l;
-      uint32_t rn;
-      uint32_t rd;
-      uint32_t offset;
-    } singleDataArgs;
+        struct singleData {
+            uint32_t i;
+            uint32_t p;
+            uint32_t u;
+            uint32_t l;
+            uint32_t rn;
+            uint32_t rd;
+            uint32_t offset;
+        } singleDataArgs;
 
-    struct brn {
-      uint32_t offset;
-    } branchArgs;
+        struct brn {
+            uint32_t offset;
+        } branchArgs;
 
-  } args;
+    } args;
 };
 
 struct decode {
-  bool ready;
-  uint32_t instruction;
+    bool ready;
+    uint32_t instruction;
 };
 
 struct ARMPipeline {
-  struct execute decoded;
-  struct decode fetched;
+    struct execute decoded;
+    struct decode fetched;
 } pipeline;
 
 
-void fetchDecodeExecute(struct ARM_Processor* processor) {
+void fetchDecodeExecute(struct ARM_Processor *processor) {
   //Pipe line does following: executes a decoded instruction
   //decodes a fetched instruction
   //fetches an instruction
@@ -244,19 +244,19 @@ void fetchDecodeExecute(struct ARM_Processor* processor) {
           if (bit26 == 1) {
             //I
             pipeline.decoded.operation = SINGLE_DATA_TRANSFER;
-            pipeline.decoded.args.singleDataArgs.i = isolateBits(pipeline.fetched.instruction, 25, 25 , 0);
+            pipeline.decoded.args.singleDataArgs.i = isolateBits(pipeline.fetched.instruction, 25, 25, 0);
             //P
-            pipeline.decoded.args.singleDataArgs.p = isolateBits(pipeline.fetched.instruction, 24, 24 , 0);
+            pipeline.decoded.args.singleDataArgs.p = isolateBits(pipeline.fetched.instruction, 24, 24, 0);
             //U
-            pipeline.decoded.args.singleDataArgs.u = isolateBits(pipeline.fetched.instruction, 23, 23 , 0);
+            pipeline.decoded.args.singleDataArgs.u = isolateBits(pipeline.fetched.instruction, 23, 23, 0);
             //L
-            pipeline.decoded.args.singleDataArgs.l = isolateBits(pipeline.fetched.instruction, 20, 20 , 0);
+            pipeline.decoded.args.singleDataArgs.l = isolateBits(pipeline.fetched.instruction, 20, 20, 0);
             //Rn
-            pipeline.decoded.args.singleDataArgs.rn = isolateBits(pipeline.fetched.instruction, 19, 16 , 3);
+            pipeline.decoded.args.singleDataArgs.rn = isolateBits(pipeline.fetched.instruction, 19, 16, 3);
             //Rd
-            pipeline.decoded.args.singleDataArgs.rd = isolateBits(pipeline.fetched.instruction, 15, 12 , 3);
+            pipeline.decoded.args.singleDataArgs.rd = isolateBits(pipeline.fetched.instruction, 15, 12, 3);
             //Offset
-            pipeline.decoded.args.singleDataArgs.offset = isolateBits(pipeline.fetched.instruction, 11, 0 , 11);
+            pipeline.decoded.args.singleDataArgs.offset = isolateBits(pipeline.fetched.instruction, 11, 0, 11);
 
             pipeline.decoded.ready = true;
             pipeline.fetched.ready = false;
@@ -265,12 +265,12 @@ void fetchDecodeExecute(struct ARM_Processor* processor) {
             bool isDataProcessing = false;
             bool isMultiply = false;
 
-            uint32_t  bit20 = isolateBits(pipeline.fetched.instruction,20,20,0);
-            uint32_t  r1 = isolateBits(pipeline.fetched.instruction,19,16,3);
-            uint32_t  r2 = isolateBits(pipeline.fetched.instruction,15,12,3);
+            uint32_t bit20 = isolateBits(pipeline.fetched.instruction, 20, 20, 0);
+            uint32_t r1 = isolateBits(pipeline.fetched.instruction, 19, 16, 3);
+            uint32_t r2 = isolateBits(pipeline.fetched.instruction, 15, 12, 3);
 
             //Check bit 25 is 1
-            if (isolateBits(pipeline.fetched.instruction,25,25,0) == 1) {
+            if (isolateBits(pipeline.fetched.instruction, 25, 25, 0) == 1) {
               isDataProcessing = true;
               isMultiply = false;
             } else {
@@ -301,24 +301,24 @@ void fetchDecodeExecute(struct ARM_Processor* processor) {
               pipeline.decoded.operation = DATA_PROCESSING;
 
               //I
-              pipeline.decoded.args.dataArgs.i = isolateBits(pipeline.fetched.instruction,25,25,0);
+              pipeline.decoded.args.dataArgs.i = isolateBits(pipeline.fetched.instruction, 25, 25, 0);
               //Opcode
-              pipeline.decoded.args.dataArgs.opCode = isolateBits(pipeline.fetched.instruction,24,21,3);
+              pipeline.decoded.args.dataArgs.opCode = isolateBits(pipeline.fetched.instruction, 24, 21, 3);
               //S
               pipeline.decoded.args.dataArgs.s = bit20;
               //rn
-              pipeline.decoded.args.dataArgs.rn= r1;
+              pipeline.decoded.args.dataArgs.rn = r1;
               //rd
-              pipeline.decoded.args.dataArgs.rd= r2;
+              pipeline.decoded.args.dataArgs.rd = r2;
               //opcode
-              pipeline.decoded.args.dataArgs.operand2 = isolateBits(pipeline.fetched.instruction,11,0,11);
+              pipeline.decoded.args.dataArgs.operand2 = isolateBits(pipeline.fetched.instruction, 11, 0, 11);
               pipeline.decoded.ready = true;
               pipeline.fetched.ready = false;
             } else if (isMultiply) {
               pipeline.decoded.operation = MULTIPLY;
 
               //A
-              pipeline.decoded.args.multArgs.a = isolateBits(pipeline.fetched.instruction,21,21,0);
+              pipeline.decoded.args.multArgs.a = isolateBits(pipeline.fetched.instruction, 21, 21, 0);
               //S
               pipeline.decoded.args.multArgs.s = bit20;
 
@@ -329,10 +329,10 @@ void fetchDecodeExecute(struct ARM_Processor* processor) {
               pipeline.decoded.args.multArgs.rn = r2;
 
               //Rs
-              pipeline.decoded.args.multArgs.rs = isolateBits(pipeline.fetched.instruction,11,8,3);
+              pipeline.decoded.args.multArgs.rs = isolateBits(pipeline.fetched.instruction, 11, 8, 3);
 
               //Rm
-              pipeline.decoded.args.multArgs.rm = isolateBits(pipeline.fetched.instruction,3,0,3);
+              pipeline.decoded.args.multArgs.rm = isolateBits(pipeline.fetched.instruction, 3, 0, 3);
 
               pipeline.decoded.ready = true;
               pipeline.fetched.ready = false;
@@ -342,25 +342,25 @@ void fetchDecodeExecute(struct ARM_Processor* processor) {
       }
     }
 
-    pipeline.fetched.instruction = readMemory(processor,processor->registers[PC]);
+    pipeline.fetched.instruction = readMemory(processor, processor->registers[PC]);
     pipeline.fetched.ready = true;
     processor->registers[PC] += BLOCK_INTERVAL;
   }
 }
 
-void compute12BitOperand (struct ARM_Processor *processor, uint32_t *operand, uint32_t *carryOut) {
+void compute12BitOperand(struct ARM_Processor *processor, uint32_t *operand, uint32_t *carryOut) {
   assert (operand != NULL);
-  uint32_t shift = isolateBits(*operand,11,4,7);
-  uint32_t rm = isolateBits(*operand,3,0,3);
-  uint32_t  shiftType = isolateBits(*operand,6,5,1);
+  uint32_t shift = isolateBits(*operand, 11, 4, 7);
+  uint32_t rm = isolateBits(*operand, 3, 0, 3);
+  uint32_t shiftType = isolateBits(*operand, 6, 5, 1);
   int amountToShift;
   uint32_t carry = 0;
 
-  if (isolateBits(*operand,4,4,0) == 0) {
-    amountToShift = isolateBits(*operand,11,7,4);
+  if (isolateBits(*operand, 4, 4, 0) == 0) {
+    amountToShift = isolateBits(*operand, 11, 7, 4);
   } else {
-    uint32_t rs = isolateBits(*operand,11,8,3);
-    amountToShift = isolateBits(processor->registers[rs],7,0,7);
+    uint32_t rs = isolateBits(*operand, 11, 8, 3);
+    amountToShift = isolateBits(processor->registers[rs], 7, 0, 7);
   }
 
   //No need to shift anything
@@ -371,43 +371,44 @@ void compute12BitOperand (struct ARM_Processor *processor, uint32_t *operand, ui
     *operand = processor->registers[rm] << amountToShift;
     //We want to get LSB of bits that are discarded in left shift
     //This will be the carry out
-    carry = isolateBits(processor->registers[rm], 32-amountToShift, 32-amountToShift,0);
+    carry = isolateBits(processor->registers[rm], 32 - amountToShift, 32 - amountToShift, 0);
   } else if (shiftType == LSR) {
     //Logical right
-    *operand= processor->registers[rm] >> amountToShift;
-    carry = isolateBits(processor->registers[rm], amountToShift-1, amountToShift-1,0);
+    *operand = processor->registers[rm] >> amountToShift;
+    carry = isolateBits(processor->registers[rm], amountToShift - 1, amountToShift - 1, 0);
   } else if (shiftType == ASR) {
     //Arithmetic right
     //We'll either have 10000000000000000..00 or 000.00000
     uint32_t sign = isolateBits(processor->registers[rm], 31, 31, 31);
-    carry = isolateBits(processor->registers[rm], amountToShift-1, amountToShift-1,0);
+    carry = isolateBits(processor->registers[rm], amountToShift - 1, amountToShift - 1, 0);
     *operand = processor->registers[rm] >> amountToShift;
 
     //Preserve the sign of the MSB (i.e. if MSB is 1, any new zeros are converted to 1s)
-    for (int i = 0; i<amountToShift; i++, sign >>= 1)
+    for (int i = 0; i < amountToShift; i++, sign >>= 1)
       *operand |= sign;
   } else if (shiftType == ROR) {
     //Rotate right
     *operand = rotateRight(processor->registers[rm], amountToShift);
-    carry = isolateBits(processor->registers[rm], amountToShift-1, amountToShift-1, 0);
+    carry = isolateBits(processor->registers[rm], amountToShift - 1, amountToShift - 1, 0);
   }
 
   if (carryOut != NULL)
     *carryOut = carry;
 
 }
-int dataProcessing (struct ARM_Processor *processor, uint32_t i, uint32_t opCode, uint32_t s,
-                    uint32_t rn, uint32_t rd, uint32_t operand2){
+
+int dataProcessing(struct ARM_Processor *processor, uint32_t i, uint32_t opCode, uint32_t s,
+                   uint32_t rn, uint32_t rd, uint32_t operand2) {
 
   //Set C to the value of carry out in any shift operation
   uint32_t carryOut = 0;
-  uint32_t  rnContents = processor->registers[rn];
+  uint32_t rnContents = processor->registers[rn];
 
   //Immediate value
   if (i == 1) {
-    uint32_t rotateAmount = isolateBits(operand2,11,8,3)*2;
-    operand2 = rotateRight(isolateBits(operand2,7,0,7), rotateAmount);
-    carryOut = isolateBits(operand2, rotateAmount-1, rotateAmount-1, 0);
+    uint32_t rotateAmount = isolateBits(operand2, 11, 8, 3) * 2;
+    operand2 = rotateRight(isolateBits(operand2, 7, 0, 7), rotateAmount);
+    carryOut = isolateBits(operand2, rotateAmount - 1, rotateAmount - 1, 0);
   } else {
     compute12BitOperand(processor, &operand2, &carryOut);
 
@@ -417,13 +418,9 @@ int dataProcessing (struct ARM_Processor *processor, uint32_t i, uint32_t opCode
 
   if (opCode == AND || opCode == TST) {
     result = rnContents & operand2;
-  }
-
-  else if (opCode == EOR || opCode == TEQ) {
+  } else if (opCode == EOR || opCode == TEQ) {
     result = rnContents ^ operand2;
-  }
-
-  else if (opCode == SUB || opCode == CMP) {
+  } else if (opCode == SUB || opCode == CMP) {
     result = rnContents - operand2;
 
     //Produced a borrow
@@ -432,9 +429,7 @@ int dataProcessing (struct ARM_Processor *processor, uint32_t i, uint32_t opCode
 
     else
       carryOut = 1;
-  }
-
-  else if (opCode == ADD) {
+  } else if (opCode == ADD) {
     result = rnContents + operand2;
 
     //Overflow
@@ -442,24 +437,20 @@ int dataProcessing (struct ARM_Processor *processor, uint32_t i, uint32_t opCode
       carryOut = 1;
     else
       carryOut = 0;
-  }
-  
-  else if (opCode == RSB) {
+  } else if (opCode == RSB) {
     result = operand2 - rnContents;
 
     if (result > operand2)
       carryOut = 0;
     else
       carryOut = 1;
-  }
-
-  else if (opCode == ORR)
+  } else if (opCode == ORR)
     result = rnContents | operand2;
 
   else if (opCode == MOV)
     result = operand2;
 
-  //Add a flag to indicate invalid opcode
+    //Add a flag to indicate invalid opcode
   else
     return FAILURE;
 
@@ -468,14 +459,14 @@ int dataProcessing (struct ARM_Processor *processor, uint32_t i, uint32_t opCode
     processor->registers[rd] = result;
 
   if (s == 1) {
-      setBit(&processor->registers[CPSR], C, carryOut);
+    setBit(&processor->registers[CPSR], C, carryOut);
 
-      if (result == 0)
-        setBit(&processor->registers[CPSR], Z, 1);
-      else
-        setBit(&processor->registers[CPSR], Z, 0);
+    if (result == 0)
+      setBit(&processor->registers[CPSR], Z, 1);
+    else
+      setBit(&processor->registers[CPSR], Z, 0);
 
-      setBit(&processor->registers[CPSR], N, isolateBits(result,31,31,0));
+    setBit(&processor->registers[CPSR], N, isolateBits(result, 31, 31, 0));
   }
 
   return SUCCESS;
@@ -493,7 +484,7 @@ int multiply(struct ARM_Processor *processor, uint32_t a, uint32_t s, uint32_t r
   result += processor->registers[rm] * processor->registers[rs];
 
   if (s) {
-    setBit(&processor->registers[CPSR], N, isolateBits(result,31,31,0));
+    setBit(&processor->registers[CPSR], N, isolateBits(result, 31, 31, 0));
     if (result == 0) {
       setBit(&processor->registers[CPSR], Z, 1);
     } else {
@@ -506,7 +497,7 @@ int multiply(struct ARM_Processor *processor, uint32_t a, uint32_t s, uint32_t r
 
 
 int singleDataTransfer(struct ARM_Processor *processor, uint32_t i, uint32_t p, uint32_t u,
-                       uint32_t l, uint32_t rn, uint32_t rd, uint32_t offset){
+                       uint32_t l, uint32_t rn, uint32_t rd, uint32_t offset) {
   //Pre: rd != pc. Also PC won't come up in a shift register
   //Offset is a shifted register
   //Add error flag for rm = rn

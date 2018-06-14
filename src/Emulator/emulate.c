@@ -7,7 +7,7 @@
 
 int main(int argc, char **argv) {
   /*MEMORY IS IN LITTLE ENDIAN*/
-  FILE* file = fopen(argv[1],"rb");
+  FILE *file = fopen(argv[1], "rb");
   assert (file != NULL);
 
   int count = 0;
@@ -15,13 +15,13 @@ int main(int argc, char **argv) {
   struct ARM_Processor processor;
   initialiseProcessor(&processor);
 
-  while (count < MEMORY_LOCATIONS+GPIO_LOCATIONS){
+  while (count < MEMORY_LOCATIONS + GPIO_LOCATIONS) {
     if (feof(file))
-        break;
+      break;
 
     int blocksToRead = 1;
     uint32_t instruction;
-    size_t bytesRead = fread(&instruction,BLOCK_INTERVAL,blocksToRead,file);
+    size_t bytesRead = fread(&instruction, BLOCK_INTERVAL, blocksToRead, file);
     if (bytesRead != blocksToRead)
       break;
 
@@ -32,7 +32,7 @@ int main(int argc, char **argv) {
        likeness of the ARM processor*/
 
     writeToMemory(&processor, instruction, count);
-    count+= BLOCK_INTERVAL;
+    count += BLOCK_INTERVAL;
   }
   fclose(file);
 
@@ -40,14 +40,14 @@ int main(int argc, char **argv) {
 
   //Finished running, printing results
   printf("Registers:\n");
-  for (int i = 0; i<GENERAL_REGISTERS; i++)
+  for (int i = 0; i < GENERAL_REGISTERS; i++)
     printf("$%-3d: %10d (0x%08x)\n", i, processor.registers[i], processor.registers[i]);
   printf("PC  : %10d (0x%08x)\n", processor.registers[PC], processor.registers[PC]);
   printf("CPSR: %10d (0x%08x)\n", processor.registers[CPSR], processor.registers[CPSR]);
-  
+
   printf("Non-zero memory:\n");
-  for (int i = 0; i<MEMORY_LOCATIONS; i+=BLOCK_INTERVAL) {
-    uint32_t  data = readMemoryLittleEndian(&processor, i);
+  for (int i = 0; i < MEMORY_LOCATIONS; i += BLOCK_INTERVAL) {
+    uint32_t data = readMemoryLittleEndian(&processor, i);
     if (data != 0)
       printf("0x%08x: 0x%08x\n", i, data);
   }
