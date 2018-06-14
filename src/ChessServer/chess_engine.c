@@ -51,7 +51,7 @@ struct Game *setupGame (){
   game->board[blackRow][0] = {.piece = ROOK, .colour = BLACK, .moved = false, .row = blackRow, .col = 0};
   game->board[blackRow][1] = {.piece = KNIGHT, .colour = BLACK, .moved = false, .row = blackRow, .col = 1};
   game->board[blackRow][2] = {.piece = BISHOP, .colour = BLACK, .moved = false, .row = blackRow, .col = 2};
-  game->board[blackRow][3] = {.piece = QUEEN, .colour = WHITE, .moved = false, .row = blackRow, .col = 3};
+  game->board[blackRow][3] = {.piece = QUEEN, .colour = BLACK, .moved = false, .row = blackRow, .col = 3};
   game->board[blackRow][4] = {.piece = KING, .colour = BLACK, .moved = false, .row = blackRow, .col = 4};
   game->board[blackRow][5] = {.piece = BISHOP, .colour = BLACK, .moved = false, .row = blackRow, .col = 5};
   game->board[blackRow][6] = {.piece = KNIGHT, .colour = BLACK, .moved = false, .row = blackRow, .col = 6};
