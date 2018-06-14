@@ -370,6 +370,10 @@ struct PossibleMoves *kingMoves (struct Game *game, struct Piece *king){
 
   struct PossibleMoves *moves = setupMovesStruct();
   
+  // ???
+  // CHECK IF IN DANGER?
+  
+  // ??? 
   if (coordWithinBoard(row+1, col) && game->board[row+1][col].colour != king->colour) {
     addMove(moves, king, row+1, col);
   }
@@ -392,7 +396,7 @@ struct PossibleMoves *kingMoves (struct Game *game, struct Piece *king){
     addMove(moves, king, row+1, col-1);
   }
  
-  // CASTLING 
+  // CASTLING ?
   if (king->colour == WHITE) {
     
   } else {
