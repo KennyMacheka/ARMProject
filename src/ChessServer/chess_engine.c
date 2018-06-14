@@ -151,6 +151,10 @@ void makeMove (struct Game *game, struct Move *move){
   //If there aren't, then statemate
 }
 
+bool coordWithinBoard(int row, int col) {
+  return row < BOARD_SIZE && row >= 0 && col < BOARD_SIZE && col >= 0;
+}
+
 bool isMoveValid (struct Game *game, struct Move *move){
   /*This is a move to check player is making the right move.
     This wouldn't be needed for an AI for instance*/
@@ -169,7 +173,6 @@ bool isMoveValid (struct Game *game, struct Move *move){
     case BISHOP:
       possibleMoves = bishopMoves(game, move->piece);
       break;
-
 
     case ROOK:
       possibleMoves = rookMoves(game, move->piece);
@@ -289,7 +292,6 @@ struct PossibleMoves *pawnMoves (struct Game *game, struct Piece *pawn){
 struct PossibleMoves *bishopMoves (struct Game *game, struct Piece *bishop){
   /**This is complete. Implement getMovesDiagonal*/
   assert (bishop->piece == BISHOP && (bishop->colour == WHITE || bishop->colour == BLACK));
-  enum COLOUR enemy = bishop->colour == WHITE ? BLACK:WHITE;
 
   if (game->matchState != NOT_OVER)
     return NULL;
@@ -309,22 +311,55 @@ struct PossibleMoves *knightMoves (struct Game *game, struct Piece *knight){
         One step backward two steps left or right
         Steps backward one step left or right
    */
-  assert (knight->piece == KNIGHT);
-  enum COLOUR enemy = knight->colour == WHITE ? BLACK:WHITE;
+  assert (knight->piece == KNIGHT && (rook->colour == WHITE || rook->colour == BLACK));
 
   if (game->matchState != NOT_OVER)
     return NULL;
 
+  enum COLOUR enemy = knight->colour == WHITE ? BLACK:WHITE;
   struct PossibleMoves *moves = setupMovesStruct();
+  
+  int row = knight->row;
+  int col = knight->col;
+  if (coordWithinBoard(row+2, col+1) && game->board[row+2][col+1].colour != knight->colour) {
+    addMove(moves, knight, row+2, col+1);
+  }
+  
+  if (coordWithinBoard(row+2, col-1) && game->board[row+2][col-1].colour != knight->colour) {
+    addMove(moves, knight, row+2, col-1);
+  }
+
+  if (coordWithinBoard(row+1, col+2) && game->board[row+1][col+2].colour != knight->colour) {
+    addMove(moves, knight, row+1, col+2);
+  }
+
+  if (coordWithinBoard(row+1, col-2) && game->board[row+1][col-2].colour != knight->colour) {
+    addMove(moves, knight, row+1, col-2);
+  }
+
+  if (coordWithinBoard(row-1, col+2) && game->board[row-1][col+2].colour != knight->colour) {
+    addMove(moves, knight, row-1, col+2);
+  }
+
+  if (coordWithinBoard(row-1, col-2) && game->board[row-1][col-2].colour != knight->colour) {
+    addMove(moves, knight, row-1, col-2);
+  }
+
+  if (coordWithinBoard(row-2, col+1) && game->board[row-2][col+1].colour != knight->colour) {
+    addMove(moves, knight, row-2, col+1);
+  }
+
+  if (coordWithinBoard(row-2, col+1) && game->board[row-2][col+1].colour != knight->colour) {
+    addMove(moves, knight, row-2, col+1);
+  }
 
   return moves;
-
 }
 
 struct PossibleMoves *rookMoves (struct Game *game, struct Piece *rook){
   /**This is complete. Implement  getMovesColumn)*/
   assert (rook->piece == ROOK && (rook->colour == WHITE || rook->colour == BLACK));
-  enum COLOUR enemy = rook->colour == WHITE ? BLACK:WHITE;
+  
   if (game->matchState != NOT_OVER)
     return NULL;
 
@@ -361,7 +396,40 @@ struct PossibleMoves *kingMoves (struct Game *game, struct Piece *king){
     return NULL;
 
   struct PossibleMoves *moves = setupMovesStruct();
-
+  
+  // ???
+  // CHECK IF IN DANGER?
+  
+  // ??? 
+  if (coordWithinBoard(row+1, col) && game->board[row+1][col].colour != king->colour) {
+    addMove(moves, king, row+1, col);
+  }
+  if (coordWithinBoard(row+1, col+1) && game->board[row+1][col+1].colour != king->colour) {
+    addMove(moves, king, row+1, col+1);
+  }
+  if (coordWithinBoard(row, col+1) && game->board[row][col+1].colour != king->colour) {
+    addMove(moves, king, row, col+1);
+  }
+  if (coordWithinBoard(row-1, col) && game->board[row-1][col].colour != king->colour) {
+    addMove(moves, king, row-1, col);
+  }
+  if (coordWithinBoard(row-1, col-1) && game->board[row-1][col-1].colour != king->colour) {
+    addMove(moves, king, row-1, col-1);
+  }
+  if (coordWithinBoard(row, col-1) && game->board[row][col-1].colour != king->colour) {
+    addMove(moves, king, row, col-1);
+  }
+  if (coordWithinBoard(row+1, col-1) && game->board[row+1][col-1].colour != king->colour) {
+    addMove(moves, king, row+1, col-1);
+  }
+ 
+  // CASTLING ?
+  if (king->colour == WHITE) {
+    
+  } else {
+  
+  }
+  
   return moves;
 }
 
@@ -374,9 +442,6 @@ struct PossibleMoves *setupMovesStruct(){
   return moves;
 }
 
-bool coordWithinBoard(int row, int col) {
-  return row < BOARD_SIZE && row >= 0 && col < BOARD_SIZE && col >= 0;
-}
 
 void getMovesDiagonal (struct Game *game, struct Piece *piece, struct PossibleMoves *moves){
 
