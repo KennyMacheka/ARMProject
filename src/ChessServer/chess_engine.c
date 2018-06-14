@@ -5,11 +5,6 @@
 #include <assert.h>
 #include "chess_engine.h"
 
-struct PossibleMoves{
-  struct Move *moves;
-  int numMoves;
-};
-
 struct PossibleMoves *kingMoves (struct Game *game, struct Piece *king);
 struct PossibleMoves *pawnMoves (struct Game *game, struct Piece *pawn);
 struct PossibleMoves *queenMoves (struct Game *game, struct Piece *queen);
@@ -28,7 +23,6 @@ void makeMove (struct Game *game, struct Move *move);
 struct Game *setupGame (){
   struct Game *game = (struct Game *) malloc(sizeof(struct Game));
   game->matchState = NOT_OVER;
-  game->checkState = NO_CHECK
   game->numBlackPieces = INITIAL_PIECES;
   game->numWhitePieces = INITIAL_PIECES;
 
@@ -166,34 +160,55 @@ struct PossibleMoves *pawnMoves (struct Game *game, struct Piece *pawn){
   //Then at the end of the function we take each move in turn...
   //...and check to see if the king goes in check. If it does, then move is invalid and we filter it out
 
-  if (pawn->colour == WHITE){
+  if (pawn->colour == BLACK){
 
-    //Move white piece forward by 1
+    //Move black piece forward by 1
     if (pawn->row -1 >= 0){
       if (game->board[pawn->row-1][pawn->col].colour == NO_COLOUR){
         addMove(moves, pawn, pawn->row-1, pawn->col);
       }
     }
 
-    //Move white piece forward by 2 if it hasn't moved yet
+    //Move black piece forward by 2 if it hasn't moved yet
     if (!pawn->moved){
       if (game->board[pawn->row-2][pawn->col].colour == NO_COLOUR){
         addMove(moves, pawn, pawn->row-2, pawn->col);
       }
     }
     //Left diagonal
+    if (game->board[pawn->row-1][pawn->col+1].colour == enemy){
+      addMove(moves, pawn, pawn->row-1, pawn->col+1);
+    }
+
+    //Right diagonal
     if (game->board[pawn->row-1][pawn->col-1].colour == enemy){
       addMove(moves, pawn, pawn->row-1, pawn->col-1);
     }
 
+  } else {
+    //Move white piece forward by 1
+    if (pawn->row +1 < BOARD_SIZE){
+      if (game->board[pawn->row+1][pawn->col].colour == NO_COLOUR){
+        addMove(moves, pawn, pawn->row+1, pawn->col);
+      }
+    }
 
-    //Complete for right  diagonal hint: column added by 1 and row subtracted by 1
+    //Move white piece forward by 2 if it hasn't moved yet
+    if (!pawn->moved){
+      if (game->board[pawn->row+2][pawn->col].colour == NO_COLOUR){
+        addMove(moves, pawn, pawn->row+2, pawn->col);
+      }
+    }
 
-  }
+    //right diagonal
+    if (game->board[pawn->row+1][pawn->col+1].colour == enemy){
+      addMove(moves, pawn, pawn->row+1, pawn->col+1);
+    }
 
-  //Do the same thing for black piece, but this time increasing column value by 1
-  else{
-
+    //left diagonal
+    if (game->board[pawn->row+1][pawn->col-1].colour == enemy){
+      addMove(moves, pawn, pawn->row+1, pawn->col-1);
+    }
   }
 
   return moves;
@@ -288,6 +303,10 @@ struct PossibleMoves *setupMovesStruct(){
   return moves;
 }
 
+bool coordWithinBoard(int row, int col) {
+  return row < BOARD_SIZE && row >= 0 && col < BOARD_SIZE && col >= 0;
+}
+
 void getMovesDiagonal (struct Game *game, struct Piece *piece, struct PossibleMoves *moves){
 
   /**This function is for calculating the possible moves a bishop or queen can make
@@ -306,6 +325,58 @@ void getMovesDiagonal (struct Game *game, struct Piece *piece, struct PossibleMo
    Hint : if you use a for loop, make sure you stop upon encountering a piece as you can't jump over a piece, and
    if a location has an enemy piece you can count that last move; if it is a friendly piece don't count it
    * */
+  assert ((piece->piece == BISHOP) || (piece->piece == QUEEN) && (piece->colour == BLACK || piece->colour == WHITE));
+
+  enum COLOUR enemy = piece->colour == WHITE ? BLACK:WHITE;
+  moves = setupMovesStruct();
+
+  int row = piece->row;
+  int col = piece->col;
+
+  bool blocked_topLeft = 0;
+  bool blocked_botLeft = 0;
+  bool blocked_topRight = 0;
+  bool blocked_botRight = 0;
+
+  for (int n = 1; n <= BOARD_SIZE; n++) {
+    if (!blocked_topLeft && coordWithinBoard(row+n, col+n)) {
+      if (game->board[row+n][col+n].colour == NO_COLOUR) {
+        addMove(moves, piece, row+n, col+n);
+      } else {
+        blocked_topLeft = 1;
+        if (game->board[row+n][col+n].colour == enemy) {
+          addMove(moves, piece, row+n, col+n);
+        }
+      }
+    } else if (!blocked_botLeft && coordWithinBoard(row-n, col+n)) {
+      if (game->board[row-n][col+n].colour == NO_COLOUR) {
+        addMove(moves, piece, row-n, col+n);
+      } else {
+        blocked_botLeft = 1;
+        if (game->board[row-n][col+n].colour == enemy) {
+          addMove(moves, piece, row-n, col+n);
+        }
+      }
+    } else if (!blocked_topRight && coordWithinBoard(row+n, col-n)) {
+      if (game->board[row+n][col-n].colour == NO_COLOUR) {
+        addMove(moves, piece, row+n, col-n);
+      } else {
+        blocked_topRight = 1;
+        if (game->board[row+n][col-n].colour == enemy) {
+          addMove(moves, piece, row+n, col-n);
+        }
+      }
+    } else if (!blocked_botRight &&  coordWithinBoard(row-n, col-n)) {
+      if (game->board[row-n][col-n].colour == NO_COLOUR) {
+        addMove(moves, piece, row-n, col-n);
+      } else {
+        blocked_botRight = 1;
+        if (game->board[row-n][col-n].colour == enemy) {
+          addMove(moves, piece, row-n, col-n);
+        }
+      }
+    }
+  }
 
 }
 
@@ -316,6 +387,59 @@ void getMovesColumn (struct Game *game, struct Piece *piece, struct PossibleMove
     and this one should be easier as you just need to get all possible moves along
     the same rows and columns
    */
+  assert ((piece->piece == BISHOP) || (piece->piece == QUEEN) && (piece->colour == BLACK || piece->colour == WHITE));
+
+  enum COLOUR enemy = piece->colour == WHITE ? BLACK:WHITE;
+  moves = setupMovesStruct();
+
+  int row = piece->row;
+  int col = piece->col;
+
+  bool blocked_top = 0;
+  bool blocked_left = 0;
+  bool blocked_right = 0;
+  bool blocked_bot = 0;
+
+  for (int n = 1; n <= BOARD_SIZE; n++) {
+    if (!blocked_top && coordWithinBoard(row+n, col)) {
+      if (game->board[row+n][col].colour == NO_COLOUR) {
+        addMove(moves, piece, row+n, col);
+      } else {
+        blocked_top = 1;
+        if (game->board[row+n][col].colour == enemy) {
+          addMove(moves, piece, row+n, col);
+        }
+      }
+    } else if (!blocked_left && coordWithinBoard(row, col+n)) {
+      if (game->board[row][col+n].colour == NO_COLOUR) {
+        addMove(moves, piece, row, col+n);
+      } else {
+        blocked_left = 1;
+        if (game->board[row][col+n].colour == enemy) {
+          addMove(moves, piece, row, col+n);
+        }
+      }
+    } else if (!blocked_right && coordWithinBoard(row, col-n)) {
+      if (game->board[row][col-n].colour == NO_COLOUR) {
+        addMove(moves, piece, row, col-n);
+      } else {
+        blocked_right = 1;
+        if (game->board[row][col-n].colour == enemy) {
+          addMove(moves, piece, row, col-n);
+        }
+      }
+    } else if (!blocked_bot &&  coordWithinBoard(row-n, col)) {
+      if (game->board[row-n][col].colour == NO_COLOUR) {
+        addMove(moves, piece, row-n, col);
+      } else {
+        blocked_bot = 1;
+        if (game->board[row-n][col].colour == enemy) {
+          addMove(moves, piece, row-n, col);
+        }
+      }
+    }
+  }
+
 }
 
 void addMove (struct PossibleMoves *moves, struct Piece *piece, int endRow, int endCol){

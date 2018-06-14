@@ -11,7 +11,7 @@ uint32_t *getBits(uint32_t x) {
   uint32_t *bits = malloc(sizeof(uint32_t) * numBits);
   uint32_t one = ((uint32_t) 1) << (numBits - 1);
 
-  for (int i = 0; i<numBits; i++) {
+  for (int i = 0; i < numBits; i++) {
     if ((x & one) == one)
       bits[i] = 1;
     else
@@ -22,10 +22,10 @@ uint32_t *getBits(uint32_t x) {
   return bits;
 }
 
-void setBit(uint32_t* num, uint32_t pos, uint32_t bit) {
+void setBit(uint32_t *num, uint32_t pos, uint32_t bit) {
   assert (bit == 1 || bit == 0);
 
-  uint32_t  bitShifted = (uint32_t) 1 << pos;
+  uint32_t bitShifted = (uint32_t) 1 << pos;
 
   if (bit == 1) {
     //Everything is a 0 except for at pos, so OR won't change anything except pos, which
@@ -39,7 +39,7 @@ void setBit(uint32_t* num, uint32_t pos, uint32_t bit) {
 }
 
 uint32_t rotateRight(uint32_t num, int amount) {
-  for (int i = 0; i<amount; i++) {
+  for (int i = 0; i < amount; i++) {
     uint32_t rightMost = num & 1;
     num >>= 1;
     num += (rightMost << 31);
@@ -48,10 +48,10 @@ uint32_t rotateRight(uint32_t num, int amount) {
   return num;
 }
 
-uint32_t rotateLeft(uint32_t num, int amount){
+uint32_t rotateLeft(uint32_t num, int amount) {
 
   uint32_t maxOne = 1 << 31;
-  for (int i = 0; i<amount; i++){
+  for (int i = 0; i < amount; i++) {
     uint32_t leftMost = num & maxOne;
     leftMost >>= 31;
     num <<= 1;
@@ -67,7 +67,7 @@ uint32_t isolateBits(uint32_t num, int end, int start, int newPos) {
   //It then moves the most significant bit of this isolated segment to a specific position
 
   //start is a less significant position  than end
-  assert(end>=start);
+  assert(end >= start);
 
   //Gets bits from position start and end inclusive
   //Puts bits in a new position, adding trailing and leading zeros where necessary
@@ -83,28 +83,28 @@ uint32_t isolateBits(uint32_t num, int end, int start, int newPos) {
             4. Move the result to the left until MSB is position newPos
    */
 
-   int numBits = (end - start) + 1;
-   unsigned bitMask = ~((unsigned int) (0));
-   int endBit = sizeof(uint32_t) * 8 - 1;
+  int numBits = (end - start) + 1;
+  unsigned bitMask = ~((unsigned int) (0));
+  int endBit = sizeof(uint32_t) * 8 - 1;
 
-   //Move required isolated bits to the far right
-   num >>= start;
+  //Move required isolated bits to the far right
+  num >>= start;
 
-   //Move bitmask so the only 1s left are in line with isolated bits
-   bitMask >>= (endBit - end) + start;
+  //Move bitmask so the only 1s left are in line with isolated bits
+  bitMask >>= (endBit - end) + start;
 
-   num = num & bitMask;
+  num = num & bitMask;
 
-   //Now we move the bits to the position newPos
-   //Currently, the MSB has position numBits-1
-   //So we move it by newPos-(numBits-1) to get MSB to newPos
-   num <<= newPos-(numBits-1);
+  //Now we move the bits to the position newPos
+  //Currently, the MSB has position numBits-1
+  //So we move it by newPos-(numBits-1) to get MSB to newPos
+  num <<= newPos - (numBits - 1);
 
-   return num;
+  return num;
 }
 
 uint32_t reverseEndianness(uint32_t x) {
-  
+
   uint32_t xSplit[4];
   int start = 0;
   int end = 7;

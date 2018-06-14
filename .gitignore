@@ -3,6 +3,8 @@
 #ignore test dir
 arm11_1718_testsuite/
 
+cmake-build-debug/
+
 #ignore temp files
 *~
 

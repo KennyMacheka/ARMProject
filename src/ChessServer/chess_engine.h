@@ -68,6 +68,12 @@ struct Move{
   enum PIECE promotionPiece;
 };
 
+struct PossibleMoves{
+  struct Move *moves;
+  int numMoves;
+};
+
+
 struct Game *setupGame ();
 bool requestMove (struct Game *game, struct Move *move);
 

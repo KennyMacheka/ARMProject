@@ -6,6 +6,7 @@
 #include <math.h>
 #include "file_handling.h"
 #include "convert_instructions.h"
+
 /*
  *1. read line store in string
  *2. add labels to symbol table
@@ -20,15 +21,15 @@
 
 int main(int argc, char **argv) {
 
-  if (argc < 3){
+  if (argc < 3) {
     printf("Invalid file names.\n");
     return EXIT_FAILURE;
   }
 
-  FILE* fin = fopen(argv[1],"r");
-  FILE* fout = fopen(argv[2],"wb");
+  FILE *fin = fopen(argv[1], "r");
+  FILE *fout = fopen(argv[2], "wb");
 
-  if (fin == NULL){
+  if (fin == NULL) {
     printf("Invalid file input.\n");
     return EXIT_FAILURE;
   }
