@@ -9,32 +9,40 @@
 #include "file_handling.h"
 
 
-struct symbolTable{
-  int* addresses;
-  char **label;
-  int size;
+struct symbolTable {
+    int *addresses;
+    char **label;
+    int size;
 };
 
-struct tokenedInstruction{
-  char **line;
-  size_t numTokens;
+struct tokenedInstruction {
+    char **line;
+    size_t numTokens;
 };
 
-struct tokenedCode{
-  struct tokenedInstruction *code;
-  size_t numLines;
+struct tokenedCode {
+    struct tokenedInstruction *code;
+    size_t numLines;
 };
 
 
 struct symbolTable *setupTable();
-void insert(struct symbolTable *, int , char *);
+
+void insert(struct symbolTable *, int, char *);
+
 int get(struct symbolTable *, char *);
-void freeSymbolTable (struct symbolTable **);
-void tokenInstruction (char *, struct tokenedInstruction *);
+
+void freeSymbolTable(struct symbolTable **);
+
+void tokenInstruction(char *, struct tokenedInstruction *);
+
 struct tokenedCode *setupTokens(struct assemblyCode *);
-void freeTokenedCode (struct tokenedCode **);
-void freeTokenedInstruction(struct tokenedInstruction * );
-void printTokens (struct tokenedCode*);
+
+void freeTokenedCode(struct tokenedCode **);
+
+void freeTokenedInstruction(struct tokenedInstruction *);
+
+void printTokens(struct tokenedCode *);
 
 
 #endif //ARM11_35_SYMBOL_TABLE_H
