@@ -267,6 +267,10 @@ struct PossibleMoves *setupMovesStruct(){
   return moves;
 }
 
+bool coordWithinBoard(int row, int col) {
+  return row < BOARD_SIZE && row >= 0 && col < BOARD_SIZE && col >= 0;
+}
+
 void getMovesDiagonal (struct Game *game, struct Piece *piece, struct PossibleMoves *moves){
 
   /**This function is for calculating the possible moves a bishop or queen can make
@@ -285,6 +289,62 @@ void getMovesDiagonal (struct Game *game, struct Piece *piece, struct PossibleMo
    Hint : if you use a for loop, make sure you stop upon encountering a piece as you can't jump over a piece, and
    if a location has an enemy piece you can count that last move; if it is a friendly piece don't count it
    * */
+  assert ((piece->piece == BISHOP) || (piece->piece == QUEEN) && (pawn->colour == BLACK || pawn->colour == WHITE));
+
+  if (game->gameOver)
+    return NULL;
+
+  enum COLOUR enemy = piece->colour == WHITE ? BLACK:WHITE;
+  struct PossibleMoves *moves = setupMovesStruct();
+
+  int row = piece->row;
+  int col = piece->col;
+
+  bool blocked_topLeft = 0;
+  bool blocked_botLeft = 0;
+  bool blocked_topRight = 0;
+  bool blocked_botRight = 0;
+  for (int n = 1; n <= BOARD_SIZE; n++) {
+    if (!blocked_topLeft && coordWithinBoard(row+n, col+n)) {
+      if (game->board[row+n][col+n].colour == NO_COLOUR) {
+        addMove(moves, piece, row+n, col+n);
+      } else {
+        blocked_topLeft = 1;
+        if (game->board[row+n][col+n],colour == enemy) {
+          addMove(moves, piece, row+n, col+n);
+        }
+      }
+    } else if (!blocked_botLeft && coordWithinBoard(row-n, col+n)) {
+      if (game->board[row-n][col+n].colour == NO_COLOUR) {
+        addMove(moves, piece, row-n, col+n);
+      } else {
+        blocked_botLeft = 1;
+        if (game->board[row-n][col+n],colour == enemy) {
+          addMove(moves, piece, row-n, col+n);
+        }
+      }
+    } else if (!blocked_topRight && coordWithinBoard(row+n, col-n)) {
+      if (game->board[row+n][col-n].colour == NO_COLOUR) {
+        addMove(moves, piece, row+n, col-n);
+      } else {
+        blocked_topRight = 1;
+        if (game->board[row+n][col-n],colour == enemy) {
+          addMove(moves, piece, row+n, col-n);
+        }
+      }
+    } else if (!blocked_botRight &&  coordWithinBoard(row-n, col-n)) {
+      if (game->board[row-n][col-n].colour == NO_COLOUR) {
+        addMove(moves, piece, row-n, col-n);
+      } else {
+        blocked_botRight = 1;
+        if (game->board[row-n][col-n],colour == enemy) {
+          addMove(moves, piece, row-n, col-n);
+        }
+      }
+    }
+  }
+
+  return moves;
 }
 
 void getMovesColumn (struct Game *game, struct Piece *piece, struct PossibleMoves *moves){
