@@ -11,6 +11,7 @@
 #define INITIAL_PIECES 16
 #define WHITE_PAWN_PROMOTION_ROW  7
 #define BLACK_PAWN_PROMOTION_ROW  0
+#define DISTINCT_PIECES 6
 
 enum MATCH_STATUS{
   NOT_OVER,
@@ -26,13 +27,13 @@ enum CHECK_STATUS{
 };
 
 enum PIECES{
-  BLANK,
   PAWN,
   KNIGHT,
   BISHOP,
   ROOK,
   QUEEN,
-  KING
+  KING,
+  BLANK
 };
 
 enum COLOUR{
