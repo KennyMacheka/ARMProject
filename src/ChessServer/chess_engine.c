@@ -23,11 +23,55 @@ void makeMove (struct Game *game, struct Move *move);
 struct Game *setupGame (){
   struct Game *game = (struct Game *) malloc(sizeof(struct Game));
   game->matchState = NOT_OVER;
+  game->checkState = NO_CHECK;
   game->numBlackPieces = INITIAL_PIECES;
   game->numWhitePieces = INITIAL_PIECES;
+  game->fiftyMoveCount = 0;
+
+  int whiteRow = 0;
+  int blackRow = 7;
+  int numPieces = 0;
+
+  //Add white pieces
+  game->board[whiteRow][0] = game->whitePieces[numPieces++] = {.piece = ROOK, .colour = WHITE, .moved = false, .row = whiteRow, .col = 0};
+  game->board[whiteRow][1] = {.piece = KNIGHT, .colour = WHITE, .moved = false, .row = whiteRow, .col = 1};
+  game->board[whiteRow][2] = {.piece = BISHOP, .colour = WHITE, .moved = false, .row = whiteRow, .col = 2};
+  game->board[whiteRow][3] = {.piece = QUEEN, .colour = WHITE, .moved = false, .row = whiteRow, .col = 3};
+  game->board[whiteRow][4] = {.piece = KING, .colour = WHITE, .moved = false, .row = whiteRow, .col = 4};
+  game->board[whiteRow][5] = {.piece = BISHOP, .colour = WHITE, .moved = false, .row = whiteRow, .col = 5};
+  game->board[whiteRow][6] = {.piece = KNIGHT, .colour = WHITE, .moved = false, .row = whiteRow, .col = 6};
+  game->board[whiteRow][7] = {.piece = ROOK, .colour = WHITE, .moved = false, .row = whiteRow, .col = 7};
+
+  //Add white pawns
+  for (int i = 0; i < BOARD_SIZE; i++){
+    game->board[whiteRow+1][i] = {.piece = PAWN, .colour = WHITE, .moved = false, .row = 1, .col = i};
+  }
+
+  //Add black pieces
+  game->board[blackRow][0] = {.piece = ROOK, .colour = BLACK, .moved = false, .row = blackRow, .col = 0};
+  game->board[blackRow][1] = {.piece = KNIGHT, .colour = BLACK, .moved = false, .row = blackRow, .col = 1};
+  game->board[blackRow][2] = {.piece = BISHOP, .colour = BLACK, .moved = false, .row = blackRow, .col = 2};
+  game->board[blackRow][3] = {.piece = QUEEN, .colour = WHITE, .moved = false, .row = blackRow, .col = 3};
+  game->board[blackRow][4] = {.piece = KING, .colour = BLACK, .moved = false, .row = blackRow, .col = 4};
+  game->board[blackRow][5] = {.piece = BISHOP, .colour = BLACK, .moved = false, .row = blackRow, .col = 5};
+  game->board[blackRow][6] = {.piece = KNIGHT, .colour = BLACK, .moved = false, .row = blackRow, .col = 6};
+  game->board[blackRow][7] = {.piece = ROOK, .colour = BLACK, .moved = false, .row = blackRow, .col = 7};
+
+  //Add black pawns
+  for (int i = 0; i < BOARD_SIZE; i++){
+    game->board[blackRow-1][i] = {.piece = PAWN, .colour = BLACK, .moved = false, .row = blackRow-1, .col = i};
+  }
+
+  //Add pieces to game->whitePieces and game->Blackpieces
+  //The reason we have these structs is to easily find all pieces in the game
+  //The alternative would be looping through the board which is a waste of time
+  for (int i = 0; i<INITIAL_PIECES; i++) {
+    game->whitePieces[i] = game->board[i/BOARD_SIZE][i % BOARD_SIZE];
+    game->blackPieces[i] = game->board[BOARD_SIZE-(i/BOARD_SIZE)-1][i % BOARD_SIZE];
+
+  }
 
   return game;
-
 }
 
 
@@ -456,7 +500,8 @@ struct PossibleMoves *filterPossibleMoves(struct Game *game, struct PossibleMove
 
     /**Loops through given moves and checks to see what moves put a King in check*/
     for (int i = 0; i < moves->numMoves; i++){
-      struct Piece priorPiece = game->board[moves->moves[i].endRow][moves->moves[i].endCol];
+      //Make a deep copy of game before making move
+      Game *copy = setupGame();
 
       makeMove(game, &moves->moves[i]);
     }

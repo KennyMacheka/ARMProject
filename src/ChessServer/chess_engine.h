@@ -56,6 +56,7 @@ struct Game{
   uint8_t  numBlackPieces;
   enum MATCH_STATUS matchState;
   enum CHECK_STATUS checkState;
+  uint8_t fiftyMoveCount;
 };
 
 struct Move{
