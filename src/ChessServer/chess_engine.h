@@ -53,6 +53,12 @@ struct Move{
   struct Piece *piece;
 };
 
+struct PossibleMoves{
+  struct Move *moves;
+  int numMoves;
+};
+
+
 struct Game *setupGame ();
 
 bool makeMove (struct Game *game, struct Move *move);

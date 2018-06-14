@@ -5,11 +5,6 @@
 #include <assert.h>
 #include "chess_engine.h"
 
-struct PossibleMoves{
-  struct Move *moves;
-  int numMoves;
-};
-
 struct PossibleMoves *kingMoves (struct Game *game, struct Piece *king);
 struct PossibleMoves *pawnMoves (struct Game *game, struct Piece *pawn);
 struct PossibleMoves *queenMoves (struct Game *game, struct Piece *queen);
@@ -128,34 +123,56 @@ struct PossibleMoves *pawnMoves (struct Game *game, struct Piece *pawn){
   //Then at the end of the function we take each move in turn...
   //...and check to see if the king goes in check. If it does, then move is invalid and we filter it out
 
-  if (pawn->colour == WHITE){
+  if (pawn->colour == BLACK){
 
-    //Move white piece forward by 1
+    //Move black piece forward by 1
     if (pawn->row -1 >= 0){
       if (game->board[pawn->row-1][pawn->col].colour == NO_COLOUR){
         addMove(moves, pawn, pawn->row-1, pawn->col);
       }
     }
 
-    //Move white piece forward by 2 if it hasn't moved yet
+    //Move black piece forward by 2 if it hasn't moved yet
     if (!pawn->moved){
       if (game->board[pawn->row-2][pawn->col].colour == NO_COLOUR){
         addMove(moves, pawn, pawn->row-2, pawn->col);
       }
     }
+
     //Left diagonal
+    if (game->board[pawn->row-1][pawn->col+1].colour == enemy){
+      addMove(moves, pawn, pawn->row-1, pawn->col+1);
+    }
+
+    //Right diagonal
     if (game->board[pawn->row-1][pawn->col-1].colour == enemy){
       addMove(moves, pawn, pawn->row-1, pawn->col-1);
     }
 
+  } else {
+    //Move white piece forward by 1
+    if (pawn->row +1 < BOARD_SIZE){
+      if (game->board[pawn->row+1][pawn->col].colour == NO_COLOUR){
+        addMove(moves, pawn, pawn->row+1, pawn->col);
+      }
+    }
 
-    //Complete for right  diagonal hint: column added by 1 and row subtracted by 1
+    //Move white piece forward by 2 if it hasn't moved yet
+    if (!pawn->moved){
+      if (game->board[pawn->row+2][pawn->col].colour == NO_COLOUR){
+        addMove(moves, pawn, pawn->row+2, pawn->col);
+      }
+    }
 
-  }
+    //right diagonal
+    if (game->board[pawn->row+1][pawn->col+1].colour == enemy){
+      addMove(moves, pawn, pawn->row+1, pawn->col+1);
+    }
 
-  //Do the same thing for black piece, but this time increasing column value by 1
-  else{
-
+    //left diagonal
+    if (game->board[pawn->row+1][pawn->col-1].colour == enemy){
+      addMove(moves, pawn, pawn->row+1, pawn->col-1);
+    }
   }
 
   return moves;
@@ -268,7 +285,6 @@ void getMovesDiagonal (struct Game *game, struct Piece *piece, struct PossibleMo
    Hint : if you use a for loop, make sure you stop upon encountering a piece as you can't jump over a piece, and
    if a location has an enemy piece you can count that last move; if it is a friendly piece don't count it
    * */
-
 }
 
 void getMovesColumn (struct Game *game, struct Piece *piece, struct PossibleMoves *moves){
