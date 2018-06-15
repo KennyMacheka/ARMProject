@@ -20,6 +20,7 @@ enum MATCH_STATUS{
   STALEMATE
 };
 
+//WHITE_CHECK means white colour is in check
 enum CHECK_STATUS{
   NO_CHECK,
   WHITE_CHECK,
@@ -64,6 +65,9 @@ struct Game{
 };
 
 struct Move{
+  bool isCastling;
+  bool isEnPassant;
+
   int startRow;
   int startCol;
 
@@ -76,8 +80,8 @@ struct Move{
   int endRow2;
   int endCol2;
 
-  bool isCastling;
   struct Piece *piece;
+  struct Piece *piece2;
   enum PIECES promotionPiece;
 };
 
