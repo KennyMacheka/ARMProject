@@ -421,12 +421,10 @@ uint32_t convertSingleDataTransfer(struct tokenedInstruction *tokens, struct sym
 
       else
         storeShiftRegister(&machineCode, address.line[1] + registerPos, address.line[2], address.line[3]);
-
     }
   }
 
-
-    //post indexing
+  //post indexing
   else {
     int rnPos = 2;
     int regExprPos = 3;
@@ -439,6 +437,7 @@ uint32_t convertSingleDataTransfer(struct tokenedInstruction *tokens, struct sym
     machineCode |= rn;
 
     if (tokens->line[regExprPos][0] == '#') {
+      //Intentional, I was aware this would hide the other variable called offset in this scope
       int offset = 0;
       if (tokens->line[regExprPos][1] == '-') {
         setBit(&machineCode, 23, 0);

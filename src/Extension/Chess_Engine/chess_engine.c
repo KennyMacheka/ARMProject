@@ -700,7 +700,6 @@ void getMovesRowColumn(struct Game *game, struct Piece *piece, struct PossibleMo
     if (blocked_bot && blocked_left && blocked_right && blocked_top)
       break;
   }
-
 }
 
 void addMove (struct PossibleMoves *moves, struct Piece *piece, int endRow, int endCol){
@@ -766,8 +765,6 @@ void addCastleMove (struct PossibleMoves *moves, struct Piece *king, struct Piec
   moves->moves[moves->numMoves].endCol2 = endColRook;
   moves->numMoves++;
 }
-
-
 
 void filterPossibleMoves(struct Game *game, struct PossibleMoves *moves){
   /**Loops through given moves and checks to see what moves put a King in check*/
