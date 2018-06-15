@@ -16,9 +16,10 @@ struct PossibleMoves *setupMovesStruct();
 void addMove (struct PossibleMoves *moves, struct Piece *piece, int endRow, int endCol);
 void addCastleMove (struct PossibleMoves *moves, struct Piece *king, struct Piece *rook,
                     int endRowKing, int endColKing, int endRowRook, int endColRook);
+void addEnPassant (struct PossibleMoves *moves, struct Piece *piece, int endRow, int endCol);
 
 void getAllPossibleMoves (struct Game *game, enum COLOUR colour, struct PossibleMoves *moves);
-struct PossibleMoves *filterPossibleMoves(struct Game *game, struct PossibleMoves *moves);
+void filterPossibleMoves(struct Game *game, struct PossibleMoves *moves);
 void getMovesRowColumn(struct Game *game, struct Piece *piece, struct PossibleMoves *moves);
 void getMovesDiagonal (struct Game *game, struct Piece *piece, struct PossibleMoves *moves);
 void makeMove (struct Game *game, struct Move *move);
@@ -36,13 +37,13 @@ struct Game *setupGame (){
   game->numWhitePieces = INITIAL_PIECES;
   game->fiftyMoveCount = 0;
   game->fiftyMoveSync = BLACK;
+  game->enPassantAvailable = false;
 
   int whiteRow = 0;
   int blackRow = 7;
-  int numPieces = 0;
 
   //Add white pieces
-  game->board[whiteRow][0] = game->whitePieces[numPieces++] = {.piece = ROOK, .colour = WHITE, .moved = false, .row = whiteRow, .col = 0};
+  game->board[whiteRow][0] = {.piece = ROOK, .colour = WHITE, .moved = false, .row = whiteRow, .col = 0};
   game->board[whiteRow][1] = {.piece = KNIGHT, .colour = WHITE, .moved = false, .row = whiteRow, .col = 1};
   game->board[whiteRow][2] = {.piece = BISHOP, .colour = WHITE, .moved = false, .row = whiteRow, .col = 2};
   game->board[whiteRow][3] = {.piece = QUEEN, .colour = WHITE, .moved = false, .row = whiteRow, .col = 3};
@@ -97,6 +98,13 @@ void deepCopy (struct Game *copyFrom, struct Game *copyTo){
   copyTo->numWhitePieces = copyFrom->numWhitePieces;
   copyTo->fiftyMoveCount = copyFrom->fiftyMoveCount;
   copyTo->fiftyMoveSync = copyFrom->fiftyMoveSync;
+  copyTo->enPassantAvailable = copyFrom->enPassantAvailable;
+  if(copyFrom->enPassantAvailable){
+    copyTo->enPassantMoveToRow = copyFrom->enPassantMoveToRow;
+    copyTo->enPassantMoveToCol = copyFrom->enPassantMoveToCol;
+    copyTo->pawnEnPassantRow = copyFrom->pawnEnPassantRow;
+    copyTo->pawnEnPassantCol = copyFrom->pawnEnPassantCol;
+  }
 
   for (int i = 0; i<INITIAL_PIECES; i++) {
     copyTo->whitePieces[i] = copyFrom->whitePieces[i];
@@ -128,23 +136,31 @@ void makeMove (struct Game *game, struct Move *move){
   //i.e. game->whitePieces and game->blackPieces
 
   enum COLOUR enemy = move->piece->colour == WHITE ? BLACK : WHITE;
-  uint8_t *numEnemyPieces = move->piece->colour == WHITE ?
+  int *numEnemyPieces = move->piece->colour == WHITE ?
                                                   &game->numBlackPieces : &game->numWhitePieces;
 
   struct Piece *enemyArray = move->piece->colour == WHITE ?
                                                     game->blackPieces : game->whitePieces;
 
-
-  if (game->board[move->endRow][move->endCol].colour == enemy){
+  if (game->board[move->endRow][move->endCol].colour == enemy || move->isEnPassant){
     game->fiftyMoveCount = 0;
     //Resync fifty move rule
     game->fiftyMoveSync = move->piece->colour;
-    *numEnemyPieces = *numEnemyPieces - (uint8_t )1;
+    *numEnemyPieces = *numEnemyPieces - 1;
     bool foundPiece = false;
+    int captureRow, captureCol;
+    if (move->isEnPassant){
+      captureRow = game->pawnEnPassantRow;
+      captureCol = game->pawnEnPassantCol;
+    }else{
+      captureRow = move->endRow;
+      captureCol = move->endCol;
+    }
+
     //Move captured piece to the end of the array
     for (int i = 0; i<INITIAL_PIECES-1; i++){
       if (!foundPiece) {
-        if (enemyArray[i].row == move->endRow && enemyArray[i].col == move->endCol) {
+        if (enemyArray[i].row == captureRow && enemyArray[i].col == captureCol) {
           foundPiece = true;
         }
       }
@@ -156,9 +172,26 @@ void makeMove (struct Game *game, struct Move *move){
       }
     }
   }else{
-    //Fifty move rule (no capture, and pawn hasn't been moved)
+      //Fifty move rule (no capture, and pawn hasn't been moved)
     if (move->piece->piece != PAWN && move->piece->colour == game->fiftyMoveSync)
       game->fiftyMoveCount++;
+  }
+
+  game->enPassantAvailable = false;
+
+
+  if (move->piece->piece == PAWN &&
+      (move->endRow - move->piece->row == 2 || move->endRow - move->piece->row == -2)){
+    game->enPassantAvailable = true;
+    game->pawnEnPassantRow = move->endRow;
+    game->pawnEnPassantCol = move->endCol;
+    game->enPassantMoveToCol = move->endCol;
+
+    if (move->piece->colour == WHITE)
+      game->enPassantMoveToRow = move->endRow-1;
+
+    else
+      game->enPassantMoveToRow = move->endRow+1;
   }
 
   move->piece->row = move->endRow;
@@ -241,14 +274,15 @@ bool isMoveValid (struct Game *game, struct Move *move){
     case KING:
       possibleMoves = kingMoves(game, move->piece, possibleMoves);
       break;
+
+    case BLANK:
+      return false;
   }
 
   assert (possibleMoves);
   filterPossibleMoves(game, possibleMoves);
 
   for (int i = 0; i < possibleMoves->numMoves; i++){
-    struct Move checkMoves = possibleMoves->moves[i];
-
     if (possibleMoves->moves[i].endRow == move->endRow &&
         possibleMoves->moves[i].endCol == move->endCol) {
       valid = true;
@@ -331,32 +365,46 @@ struct PossibleMoves *pawnMoves (struct Game *game, struct Piece *pawn, struct P
   //...and check to see if the king goes in check. If it does, then move is invalid and we filter it out
 
   if (pawn->colour == BLACK && pawn->row-1 >= 0){
+    if (game->enPassantAvailable){
+      int diffCol = game->enPassantMoveToCol-pawn->col;
+      if (game->enPassantMoveToRow == pawn->row-1 && (diffCol == 1 || diffCol == -1))
+        addEnPassant(moves, pawn, game->enPassantMoveToRow, game->enPassantMoveToCol);
+    }
 
     //Move black piece forward by 1
-
     if (game->board[pawn->row-1][pawn->col].colour == NO_COLOUR){
       addMove(moves, pawn, pawn->row-1, pawn->col);
     }
 
     //Move black piece forward by 2 if it hasn't moved yet
     if (!pawn->moved){
-      if (game->board[pawn->row-2][pawn->col].colour == NO_COLOUR){
+      if (game->board[pawn->row-2][pawn->col].colour == NO_COLOUR)
         addMove(moves, pawn, pawn->row-2, pawn->col);
-      }
     }
     //left diagonal
-    if (game->board[pawn->row-1][pawn->col+1].colour == enemy){
-      addMove(moves, pawn, pawn->row-1, pawn->col+1);
+    if (pawn->col+1 < BOARD_SIZE) {
+      if (game->board[pawn->row - 1][pawn->col + 1].colour == enemy)
+        addMove(moves, pawn, pawn->row - 1, pawn->col + 1);
+
     }
 
     //right diagonal
-    if (game->board[pawn->row-1][pawn->col-1].colour == enemy){
-      addMove(moves, pawn, pawn->row-1, pawn->col-1);
+    if (pawn->col-1 >= 0) {
+      if (game->board[pawn->row - 1][pawn->col - 1].colour == enemy)
+        addMove(moves, pawn, pawn->row - 1, pawn->col - 1);
+
     }
 
   } else if (pawn->colour == WHITE && pawn->row+1 < BOARD_SIZE) {
+
+    if (game->enPassantAvailable){
+      int diffCol = pawn->col - game->enPassantMoveToCol;
+
+      if (pawn->row+1 == game->enPassantMoveToRow && (diffCol == 1 || diffCol == -1))
+        addEnPassant(moves, pawn, game->enPassantMoveToRow, game->enPassantMoveToCol);
+    }
     //Move white piece forward by 1
-    if (pawn->row +1 < BOARD_SIZE){
+    if (pawn->row+1 < BOARD_SIZE){
       if (game->board[pawn->row+1][pawn->col].colour == NO_COLOUR){
         addMove(moves, pawn, pawn->row+1, pawn->col);
       }
@@ -364,19 +412,23 @@ struct PossibleMoves *pawnMoves (struct Game *game, struct Piece *pawn, struct P
 
     //Move white piece forward by 2 if it hasn't moved yet
     if (!pawn->moved){
-      if (game->board[pawn->row+2][pawn->col].colour == NO_COLOUR){
+      if (game->board[pawn->row+2][pawn->col].colour == NO_COLOUR)
         addMove(moves, pawn, pawn->row+2, pawn->col);
-      }
+
     }
 
     //left diagonal
-    if (game->board[pawn->row+1][pawn->col-1].colour == enemy){
-      addMove(moves, pawn, pawn->row+1, pawn->col+1);
+    if (pawn->col-1 >= 0) {
+      if (game->board[pawn->row + 1][pawn->col - 1].colour == enemy)
+        addMove(moves, pawn, pawn->row + 1, pawn->col + 1);
+
     }
 
     //right diagonal
-    if (game->board[pawn->row+1][pawn->col+1].colour == enemy){
-      addMove(moves, pawn, pawn->row+1, pawn->col-1);
+    if(pawn->col+1 < BOARD_SIZE) {
+      if (game->board[pawn->row + 1][pawn->col + 1].colour == enemy)
+        addMove(moves, pawn, pawn->row + 1, pawn->col - 1);
+
     }
   }
 
@@ -408,8 +460,6 @@ struct PossibleMoves *knightMoves (struct Game *game, struct Piece *knight, stru
   if (game->matchState != NOT_OVER)
     return NULL;
 
-  enum COLOUR enemy = knight->colour == WHITE ? BLACK:WHITE;
-
   for (int i = -2; i <= 2; i++){
     for (int j = -2; j <= 2; j++){
       if (i == j || i == 0 || j == 0 || !coordWithinBoard(knight->row+i, knight->col+j))
@@ -438,7 +488,6 @@ struct PossibleMoves *rookMoves (struct Game *game, struct Piece *rook, struct P
 struct PossibleMoves *queenMoves (struct Game *game, struct Piece *queen, struct PossibleMoves *moves){
   assert (moves && queen->piece == QUEEN && (queen->colour == WHITE || queen->colour == BLACK) );
 
-  enum COLOUR enemy = queen->colour == WHITE ? BLACK:WHITE;
   if (game->matchState != NOT_OVER)
     return NULL;
 
@@ -451,7 +500,6 @@ struct PossibleMoves *queenMoves (struct Game *game, struct Piece *queen, struct
 
 struct PossibleMoves *kingMoves (struct Game *game, struct Piece *king, struct PossibleMoves *moves){
   assert (moves && king->piece == KING && (king->colour == WHITE || king->colour == BLACK));
-  enum COLOUR enemy = king->colour == WHITE ? BLACK:WHITE;
 
   if (game->matchState != NOT_OVER)
     return NULL;
@@ -656,6 +704,7 @@ void addMove (struct PossibleMoves *moves, struct Piece *piece, int endRow, int 
 
   for (int i = 0; i < loopNum; i++) {
     moves->moves[moves->numMoves].isCastling = false;
+    moves->moves[moves->numMoves].isEnPassant = false;
     moves->moves[moves->numMoves].piece = piece;
     moves->moves[moves->numMoves].startRow = piece->row;
     moves->moves[moves->numMoves].startCol = piece->col;
@@ -670,12 +719,19 @@ void addMove (struct PossibleMoves *moves, struct Piece *piece, int endRow, int 
   }
 }
 
+void addEnPassant (struct PossibleMoves *moves, struct Piece *piece, int endRow, int endCol){
+  addMove(moves, piece, endRow, endCol);
+  moves->moves[moves->numMoves-1].isEnPassant = true;
+}
+
 void addCastleMove (struct PossibleMoves *moves, struct Piece *king, struct Piece *rook,
                     int endRowKing, int endColKing, int endRowRook, int endColRook){
 
+  assert(king->piece == KING && rook->piece == ROOK);
 
   moves-> moves = realloc(moves->moves, sizeof(struct Move)*(moves->numMoves+1));
   moves->moves[moves->numMoves].isCastling = true;
+  moves->moves[moves->numMoves].isEnPassant = false;
   moves->moves[moves->numMoves].piece = king;
   moves->moves[moves->numMoves].piece = rook;
 
@@ -695,7 +751,7 @@ void addCastleMove (struct PossibleMoves *moves, struct Piece *king, struct Piec
 
 
 
-struct PossibleMoves *filterPossibleMoves(struct Game *game, struct PossibleMoves *moves){
+void filterPossibleMoves(struct Game *game, struct PossibleMoves *moves){
   /**Loops through given moves and checks to see what moves put a King in check*/
   struct Move *validMoves = (struct Move *) malloc(sizeof(struct Move)*moves->numMoves);
   int numValidMoves = 0;
@@ -703,10 +759,10 @@ struct PossibleMoves *filterPossibleMoves(struct Game *game, struct PossibleMove
   for (int i = 0; i < moves->numMoves; i++){
     enum Colour oppositeColour = moves->moves[i].piece->colour == WHITE ? WHITE : BLACK;
     //Make a deep copy of game before making move
-    struct Game *copy;
-    deepCopy(game, copy);
-    makeMove(copy, &moves->moves[i]);
-    if (!isKingInCheck(copy,moves->moves[i].piece->colour)){
+    struct Game copy;
+    deepCopy(game, &copy);
+    makeMove(&copy, &moves->moves[i]);
+    if (!isKingInCheck(&copy,moves->moves[i].piece->colour)){
       validMoves[numValidMoves] = moves->moves[i];
       numValidMoves ++;
     }

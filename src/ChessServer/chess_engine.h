@@ -56,12 +56,19 @@ struct Game{
   struct Piece board[BOARD_SIZE][BOARD_SIZE];
   struct Piece whitePieces[INITIAL_PIECES];
   struct Piece blackPieces[INITIAL_PIECES];
-  uint8_t  numWhitePieces;
-  uint8_t  numBlackPieces;
+  int  numWhitePieces;
+  int  numBlackPieces;
   enum MATCH_STATUS matchState;
   enum CHECK_STATUS checkState;
-  uint8_t fiftyMoveCount;
+  int fiftyMoveCount;
   enum COLOUR fiftyMoveSync;
+  bool enPassantAvailable;
+  //Location of pawn that just double moved
+  int pawnEnPassantRow;
+  int pawnEnPassantCol;
+  //Where to move to in the event of en passant
+  int enPassantMoveToRow;
+  int enPassantMoveToCol;
 };
 
 struct Move{
