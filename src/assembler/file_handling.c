@@ -28,13 +28,13 @@ struct assemblyCode *readFile(FILE *file) {
   size_t size = MAX_CHARS;
   ssize_t charsRead;
   while ((charsRead = getline(&line, &size, file)) != -1) {
-    //Comment
+    //Implements comment ability in code
     if (line[0] == '@')
       continue;
     //Find "\n" if one is present
     if (line[charsRead - 1] == '\n') {
       line[charsRead - 1] = '\0';
-      //Empty line
+      //Empty Line
       if (charsRead == 1)
         continue;
     }
