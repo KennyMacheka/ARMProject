@@ -1,10 +1,12 @@
 //
 // Created by kenny on 13/06/18.
 //
+#define _GNU_SOURCE
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_ttf.h>
 #include <SDL2/SDL_image.h>
 #include "../Chess_Engine/chess_engine.h"
+#include "../network_protocols.h"
 
 const int maxWindowWidth = 3600;
 const int maxWindowHeight = 3600;
@@ -13,6 +15,66 @@ const double windowPos_x_scale = 0.01;
 const double windowPos_y_scale = 0.05;
 
 int main(){
+
+  int status;
+  int mainSocket, serverSocket;
+  struct addrinfo hints;
+  struct addrinfo *serverInfo = NULL;
+  struct addrinfo *server = NULL;
+  struct sockaddr_storage clientAddress;
+  socklen_t addressSize;
+
+  memset(&hints, 0, sizeof(hints));
+  //IPv4 or IPv6
+  hints.ai_family = AF_UNSPEC;
+  //TCP- continuous connection
+  hints.ai_socktype = SOCK_STREAM;
+  //Will fill in server's IP
+  hints.ai_flags = AI_PASSIVE;
+
+  if (getaddrinfo("10.206.193.176", PORT_STR, &hints, &serverInfo) != 0){
+    fprintf(stderr, "getaddrinfo error: %s\n", gai_strerror(status));
+    return EXIT_FAILURE;
+  }
+
+  printf("Recieved address info.\n");
+
+  for(server = serverInfo; server != NULL; server = server->ai_next){
+
+    mainSocket = socket(server->ai_family, server->ai_socktype, server->ai_protocol);
+    if (mainSocket == -1) {
+      printf("client socket error.\n");
+      continue;
+    }
+
+    serverSocket = connect(mainSocket, server->ai_addr, server->ai_addrlen);
+    if (serverSocket == -1){
+      printf("Client connect error.\n");
+      continue;
+    }
+
+    break;
+
+  }
+  freeaddrinfo(serverInfo);
+
+
+  if (server == NULL){
+    printf("Failed to establish socket and connection.\n");
+    return EXIT_FAILURE;
+  }
+
+  char msg[20];
+  printf("Attempting to recieve message: \n");
+  if (recv(mainSocket, msg, 20, 0) == 0){
+    fprintf(stderr,"Received nothing from server.\n");
+    return EXIT_FAILURE;
+  }
+
+  printf("Message recieved from server: %s\n", msg);
+
+  shutdown(mainSocket, 2);
+
 
   //A structure that will store monitor information such as the width and height of the monitor
   SDL_DisplayMode monitorInformation;

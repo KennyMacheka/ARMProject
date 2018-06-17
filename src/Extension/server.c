@@ -4,15 +4,6 @@
 #define _GNU_SOURCE
 #include <stdio.h>
 #include <stdlib.h>
-#include <memory.h>
-#include <sys/types.h>
-#include <sys/socket.h>
-#include <netdb.h>
-#include <arpa/inet.h>
-#include <netinet/in.h>
-#include <errno.h>
-#include <pthread.h>
-#include <unistd.h>
 #include "network_protocols.h"
 
 /*
@@ -32,7 +23,7 @@ int main(){
   int mainSocket, clientSocket;
   struct addrinfo hints;
   struct addrinfo *serverInfo = NULL;
-  struct addrInfo *server = NULL;
+  struct addrinfo *server = NULL;
   struct sockaddr_storage clientAddress;
   socklen_t addressSize;
 
@@ -54,47 +45,40 @@ int main(){
   void *addr;
   char *ipver;
 
-  /*
-  for (struct addrinfo *p = serverInfo; p != NULL; p = p->ai_next) {
-    if (p->ai_family == AF_INET) {
-      struct sockaddr_in *ipv4 = (struct sockaddr_in *) p->ai_addr;
-      addr = &(ipv4->sin_addr);
-      ipver = "IPv4";
-    } else {
-      struct sockaddr_in6 *ipv6 = (struct sockaddr_in6 *) p->ai_addr;
-      addr = &(ipv6->sin6_addr);
-      ipver = "IPv6";
+  for (server = serverInfo; server != NULL; server = server->ai_next){
+    mainSocket = socket(server->ai_family, server->ai_socktype, server->ai_protocol);
+
+    if (mainSocket == -1){
+      printf("Error: server socket.\n");
+      continue;
     }
 
-    if (inet_ntop(p->ai_family, addr, ipStr, sizeof(ipStr)))
-      printf(" %s: %s\n", ipver, ipStr);
-    else {
-      fprintf(stderr, "inet_ntop conversion errror: %s\n", strerror(errno));
+    int bindVal = bind(mainSocket, server->ai_addr, server->ai_addrlen);
+    if (bindVal == -1){
+      close(mainSocket);
+      printf("Error: server bind.\n");
+      continue;
     }
-  }*/
 
-  mainSocket = socket(serverInfo->ai_family, serverInfo->ai_socktype, serverInfo->ai_protocol);
-
-  if (mainSocket == -1){
-    fprintf(stderr, "Failed to establish main socket. Error msg: %s\n", strerror(errno));
-    return EXIT_FAILURE;
+    break;
   }
 
-  if(bind(mainSocket, serverInfo->ai_addr, serverInfo->ai_addrlen) == -1){
-    fprintf(stderr, "Failed to bind to port. Error msg: %s\n", strerror(errno));
-    return EXIT_FAILURE;
+  if (server == NULL){
+     printf("Failed to establish server socket and bind.\n");
+     return EXIT_FAILURE;
   }
+
 
   listen(mainSocket, BACKLOG);
-
+  printf("Listening...\n");
   addressSize = sizeof(clientAddress);
   clientSocket = accept(mainSocket, (struct sockaddr *)&clientAddress, &addressSize);
   char *msg = "Hello, there";
   int len, bytesSent;
 
   len = strlen(msg);
-  bytesSent = send(clientSocket, "Hello", len, 0);
-
+  bytesSent = send(clientSocket, msg, len, 0);
+  printf("Bytes sent: %d\n", bytesSent);
   shutdown(clientSocket, 2);
   close(mainSocket);
   freeaddrinfo(serverInfo);
