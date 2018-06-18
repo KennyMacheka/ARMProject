@@ -31,8 +31,8 @@ int main(){
   hints.ai_socktype = SOCK_STREAM;
   //Will fill in server's IP
   hints.ai_flags = AI_PASSIVE;
-
-  if (getaddrinfo("10.206.193.176", PORT_STR, &hints, &serverInfo) != 0){
+  status = getaddrinfo("raspberrypi", PORT_STR, &hints, &serverInfo);
+  if (status != 0){
     fprintf(stderr, "getaddrinfo error: %s\n", gai_strerror(status));
     return EXIT_FAILURE;
   }

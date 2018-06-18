@@ -28,6 +28,9 @@ int main(){
   socklen_t addressSize;
 
   char ipStr[INET6_ADDRSTRLEN];
+  char host[50];
+
+  gethostname(host,50);
 
   memset(&hints, 0, sizeof(hints));
   //IPv4 or IPv6
@@ -36,8 +39,10 @@ int main(){
   hints.ai_socktype = SOCK_STREAM;
   //Will fill in server's IP
   hints.ai_flags = AI_PASSIVE;
-
-  if (getaddrinfo(NULL, PORT_STR, &hints, &serverInfo) != 0){
+  char hostname[200];
+  gethostname(hostname,200);
+  printf("Host: %s\n", hostname);
+  if (getaddrinfo(hostname, PORT_STR, &hints, &serverInfo) != 0){
     fprintf(stderr, "getaddrinfo error: %s\n", gai_strerror(status));
     return EXIT_FAILURE;
   }
@@ -59,6 +64,19 @@ int main(){
       printf("Error: server bind.\n");
       continue;
     }
+
+    if (server->ai_family == AF_INET) { // IPv4
+      struct sockaddr_in *ipv4 = (struct sockaddr_in *)server->ai_addr;
+      addr = &(ipv4->sin_addr);
+      ipver = "IPv4";
+    }
+    else { // IPv6
+      struct sockaddr_in6 *ipv6 = (struct sockaddr_in6 *)server->ai_addr;
+      addr = &(ipv6->sin6_addr);
+      ipver = "IPv6";
+    }
+    inet_ntop(server->ai_family, addr, ipStr, sizeof (ipStr));
+    printf(" %s: %s\n", ipver, ipStr);
 
     break;
   }
