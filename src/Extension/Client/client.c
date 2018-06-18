@@ -17,12 +17,12 @@ const double windowPos_y_scale = 0.05;
 int main(){
 
   int status;
-  int mainSocket, serverSocket;
+  int mainSocket;
   struct addrinfo hints;
   struct addrinfo *serverInfo = NULL;
   struct addrinfo *server = NULL;
-  struct sockaddr_storage clientAddress;
-  socklen_t addressSize;
+  struct DataPacket *packet = (struct DataPacket *) malloc(sizeof(struct DataPacket));
+
 
   memset(&hints, 0, sizeof(hints));
   //IPv4 or IPv6
@@ -31,7 +31,7 @@ int main(){
   hints.ai_socktype = SOCK_STREAM;
   //Will fill in server's IP
   hints.ai_flags = AI_PASSIVE;
-  status = getaddrinfo("raspberrypi", PORT_STR, &hints, &serverInfo);
+  status = getaddrinfo("kenny-Aspire-ES1-521", PORT_STR, &hints, &serverInfo);
   if (status != 0){
     fprintf(stderr, "getaddrinfo error: %s\n", gai_strerror(status));
     return EXIT_FAILURE;
@@ -47,7 +47,7 @@ int main(){
       continue;
     }
 
-    serverSocket = connect(mainSocket, server->ai_addr, server->ai_addrlen);
+    int serverSocket = connect(mainSocket, server->ai_addr, server->ai_addrlen);
     if (serverSocket == -1){
       printf("Client connect error.\n");
       continue;
@@ -56,6 +56,7 @@ int main(){
     break;
 
   }
+
   freeaddrinfo(serverInfo);
 
 
@@ -64,17 +65,16 @@ int main(){
     return EXIT_FAILURE;
   }
 
-  char msg[20];
+
   printf("Attempting to recieve message: \n");
-  if (recv(mainSocket, msg, 20, 0) == 0){
+  if (recievePacket(&packet, mainSocket) != 0){
     fprintf(stderr,"Received nothing from server.\n");
     return EXIT_FAILURE;
   }
 
-  printf("Message recieved from server: %s\n", msg);
+  printf("Message recieved from server: %d\n", packet->type);
 
   shutdown(mainSocket, 2);
-
 
   //A structure that will store monitor information such as the width and height of the monitor
   SDL_DisplayMode monitorInformation;
