@@ -2,52 +2,62 @@
 // Created by kenny on 13/06/18.
 //
 #define _GNU_SOURCE
-#include <SDL2/SDL.h>
-#include <SDL2/SDL_ttf.h>
-#include <SDL2/SDL_image.h>
+#include <pthread.h>
+#include "SDL_Libraries.h"
+#include "sdl_utilities.h"
 #include "../Chess_Engine/chess_engine.h"
 #include "../network_protocols.h"
+#include "rendering_global_vars.h"
+#include "texture.h"
 
-const int maxWindowWidth = 3600;
-const int maxWindowHeight = 3600;
-const double dimensionsScale = 0.90;
-const double windowPos_x_scale = 0.01;
-const double windowPos_y_scale = 0.05;
+#define PIECE_PATH_LEN 14
 
-int main(){
+//Working directory is extension
+void setupNetwork();
+void dismantleNetwork();
 
+struct serverDetails{
   int status;
-  int mainSocket;
   struct addrinfo hints;
-  struct addrinfo *serverInfo = NULL;
-  struct addrinfo *server = NULL;
-  struct DataPacket *packet = (struct DataPacket *) malloc(sizeof(struct DataPacket));
+  struct addrinfo *serverInfo;
+  struct addrinfo *server;
+  struct DataPacket *packet;
+  char username[MAX_USERNAME_SIZE+1];
+  int numPlayers;
+  char playersAvailable[MAX_PLAYERS][MAX_USERNAME_SIZE+1];
+  int socket;
+}network;
 
+void setupNetwork(){
+  network.serverInfo = NULL;
+  network.server = NULL;
 
-  memset(&hints, 0, sizeof(hints));
+  memset(&network.hints, 0, sizeof(network.hints));
   //IPv4 or IPv6
-  hints.ai_family = AF_UNSPEC;
+  network.hints.ai_family = AF_UNSPEC;
   //TCP- continuous connection
-  hints.ai_socktype = SOCK_STREAM;
+  network.hints.ai_socktype = SOCK_STREAM;
   //Will fill in server's IP
-  hints.ai_flags = AI_PASSIVE;
-  status = getaddrinfo("kenny-Aspire-ES1-521", PORT_STR, &hints, &serverInfo);
-  if (status != 0){
-    fprintf(stderr, "getaddrinfo error: %s\n", gai_strerror(status));
-    return EXIT_FAILURE;
+  network.hints.ai_flags = AI_PASSIVE;
+  network.socket = -1;
+  network.status = getaddrinfo("kenny-Aspire-ES1-521", PORT_STR, &network.hints, &network.serverInfo);
+
+  if (network.status != 0){
+    fprintf(stderr, "getaddrinfo error: %s\n", gai_strerror(network.status));
+    dismantleNetwork();
+    exit(1);
   }
 
   printf("Recieved address info.\n");
 
-  for(server = serverInfo; server != NULL; server = server->ai_next){
-
-    mainSocket = socket(server->ai_family, server->ai_socktype, server->ai_protocol);
-    if (mainSocket == -1) {
+  for(network.server = network.serverInfo; network.server != NULL; network.server = network.server->ai_next){
+    network.socket = socket(network.server->ai_family, network.server->ai_socktype, network.server->ai_protocol);
+    if (network.socket == -1) {
       printf("client socket error.\n");
       continue;
     }
 
-    int serverSocket = connect(mainSocket, server->ai_addr, server->ai_addrlen);
+    int serverSocket = connect(network.socket, network.server->ai_addr, network.server->ai_addrlen);
     if (serverSocket == -1){
       printf("Client connect error.\n");
       continue;
@@ -56,24 +66,45 @@ int main(){
     break;
   }
 
-  freeaddrinfo(serverInfo);
+  /**Whether the client establishes connection with network or not
+     they will be prompted to enter their username.
+     If connection was not established, program will work
+     behind the scenes to once again establish network
+     after the user submits their username.
+   */
 
-
-  if (server == NULL){
+  if (network.server == NULL){
     printf("Failed to establish socket and connection.\n");
-    return EXIT_FAILURE;
   }
 
+  else {
 
-  printf("Attempting to recieve message: \n");
-  if (recievePacket(&packet, mainSocket) != 0){
-    fprintf(stderr,"Received nothing from server.\n");
-    return EXIT_FAILURE;
+    //Server should tell client where or not network was established
+    printf("Attempting to recieve message: \n");
+    if (recievePacket(&network.packet, network.socket) != 0) {
+      fprintf(stderr, "Received nothing from server.\n");
+    }
+
+    printf("Message recieved from server: %d\n", network.packet->type);
+
   }
+}
 
-  printf("Message recieved from server: %d\n", packet->type);
+void dismantleNetwork(){
+  if (network.serverInfo)
+    freeaddrinfo(network.serverInfo);
+  //No need to free network.server, as it came from network.serverinfo
+  if (network.packet)
+    free(network.packet);
 
-  shutdown(mainSocket, 2);
+  if (network.socket != -1)
+    shutdown(network.socket, 2);
+}
+
+
+int main(){
+
+  char *usernamePrompt = "Enter a username (max 9 characters)";
 
   //A structure that will store monitor information such as the width and height of the monitor
   SDL_DisplayMode monitorInformation;
@@ -89,10 +120,25 @@ int main(){
   int window_x, window_y;
 
   //Window title which will be shown on the window bar
-  const char* windowTitle = "GNU C Coders- Chess";
-
+  const char *windowTitle = "GNU C Coders- Chess";
   //The name of the true type font that will be used in the program
-  const char* calibri = "C:\\Windows\\Fonts\\Calibri.ttf";
+  const char *calibri = "Fonts\\Calibri.ttf";
+  const char *boardPath = "Images/board.png";
+  const char whitePiecesPaths[DISTINCT_PIECES][PIECE_PATH_LEN+1] = {[PAWN] = "Images/wp.png",
+                                                          [KNIGHT] = "Images/wn.png", [BISHOP] = "Images/wb.png",
+                                                          [ROOK] = "Images/wr.png", [QUEEN] = "Images/wq.png",
+                                                          [KING] = "Images/wk.png"};
+
+  const char blackPiecesPaths[DISTINCT_PIECES][PIECE_PATH_LEN+1] = {[PAWN] = "Images/wp.png",
+                                                      [KNIGHT] = "Images/wn.png", [BISHOP] = "Images/wb.png",
+                                                      [ROOK] = "Images/wr.png", [QUEEN] = "Images/wq.png",
+                                                      [KING] = "Images/wk.png"};
+
+  struct Texture *whitePiecesPics[DISTINCT_PIECES];
+  struct Texture *blackPiecesPics[DISTINCT_PIECES];
+
+  SDL_Rect chessBoard;
+  struct Texture *boardPic;
 
   if (SDL_Init(SDL_INIT_VIDEO|SDL_INIT_EVENTS) < 0){
     fprintf(stderr, "Failed to initialise SDL.\n");
@@ -114,8 +160,22 @@ int main(){
   else
     windowHeight = monitorInformation.h * dimensionsScale;
 
+
   window_x = windowWidth * windowPos_x_scale;
   window_y = windowHeight * windowPos_y_scale;
+
+  if (windowWidth > windowHeight){
+    chessBoard.w =  windowHeight*chessBoardScale;
+    chessBoard.h = windowHeight * chessBoardScale;
+  }
+
+  else{
+    chessBoard.w = windowWidth * chessBoardScale;
+    chessBoard.h = windowWidth * chessBoardScale;
+  }
+
+  chessBoard.x = chessBoard.w*chessBoardPos_x_scale;
+  chessBoard.y = chessBoard.h*chessBoardPos_y_scale;
 
   window = SDL_CreateWindow(windowTitle, window_x, window_y, windowWidth, windowHeight, SDL_WINDOW_SHOWN);
   if (!window){
@@ -131,24 +191,56 @@ int main(){
 
   if (! (IMG_Init(IMG_INIT_PNG) & IMG_INIT_PNG)){
     fprintf(stderr, "Failed to initialise SDL PNG image support: %s\n", IMG_GetError());
+    return EXIT_FAILURE;
   }
 
   if (TTF_Init() < 0){
     fprintf(stderr, "Failed to initialise TTF: %s\n", TTF_GetError());
+    return EXIT_FAILURE;
   }
+
+  if(!(boardPic = setupTexture())){
+    fprintf(stderr, "Failed to initialise texture.\n");
+    return EXIT_FAILURE;
+  }
+
+  if(!loadImage(boardPic, renderer, boardPath, false, 0, 0, 0)){
+    fprintf(stderr, "Failed to load board pic.\n");
+    return EXIT_FAILURE;
+  }
+
+  for (int i = 0; i < DISTINCT_PIECES; i++){
+    whitePiecesPics[i] = setupTexture();
+    blackPiecesPics[i] = setupTexture();
+
+    if (!loadImage(whitePiecesPics[i], renderer, whitePiecesPaths[i], false, 0, 0, 0)||
+        !loadImage(blackPiecesPics[i], renderer, blackPiecesPaths[i], false, 0, 0, 0)){
+      fprintf(stderr, "Failed to load a piece picture.\n");
+      return EXIT_FAILURE;
+    }
+  }
+
 
   bool endProgram = false;
   SDL_Event event;
-
+  setupNetwork();
   while (!endProgram){
+    SDL_SetRenderDrawColor(renderer, 0, 0, 0, 0);
+    SDL_RenderClear(renderer);
+
+    renderTexture(boardPic, renderer, &chessBoard, NULL);
+
     while (SDL_PollEvent(&event)!=0){
       //If connected to server should send message to quit
       if (event.type == SDL_QUIT){
         endProgram = true;
       }
     }
+
+    SDL_RenderPresent (renderer);
   }
 
+  dismantleNetwork();
   SDL_DestroyWindow(window);
   SDL_DestroyRenderer(renderer);
   //Call TTF_CloseFont(fontName) if I later load a font

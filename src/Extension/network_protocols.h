@@ -33,6 +33,9 @@
 #define STOC_CONNECTION_ENDED 11
 //This'll end connection, client will be aware
 #define STOC_TOO_MANY_PLAYERS 12
+#define STOC_OPPONENT_LEFT 13
+//A ping sent to the server every few seconds to inform it client is still online
+#define CTOS_STILL_ONLINE
 
 
 

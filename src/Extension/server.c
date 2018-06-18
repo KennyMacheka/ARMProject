@@ -92,7 +92,9 @@ void *clientServerInteraction (void *clientSocket){
     recievePacket(&packet, client->socket);
 
     switch(packet->type){
-
+      case CTOS_END_CONNECTION:
+        validConnection = false;
+        break;
     }
 
 
