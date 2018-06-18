@@ -31,7 +31,9 @@
 #define STOC_OPPONENT_MOVE 8
 #define CTOS_END_CONNECTION 10
 #define STOC_CONNECTION_ENDED 11
-#define TOO_MANY_PLAYERS 12
+//This'll end connection, client will be aware
+#define STOC_TOO_MANY_PLAYERS 12
+
 
 
 //STOC = server to client
@@ -47,5 +49,6 @@ int sendPacket (struct DataPacket *packet, int socket);
 int recievePacket (struct DataPacket **packet, int socket);
 void serverEndConnection (int socket);
 void clientEndConnection (int socket);
+void serverTooManyPlayers (int socket);
 
 #endif //ARM11_35_NETWORK_PROTOCOLS_H

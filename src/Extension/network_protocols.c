@@ -59,6 +59,13 @@ void serverEndConnection (int socket){
   packet.argc = 0;
   sendPacket(&packet, socket);
 }
+
+void serverTooManyPlayers (int socket){
+  struct DataPacket packet;
+  packet.type = STOC_TOO_MANY_PLAYERS;
+  packet.argc = 0;
+  sendPacket(&packet, socket);
+}
 void clientEndConnection (int socket){
   struct DataPacket packet;
   packet.type = CTOS_END_CONNECTION;

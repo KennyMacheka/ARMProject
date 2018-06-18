@@ -54,7 +54,6 @@ int main(){
     }
 
     break;
-
   }
 
   freeaddrinfo(serverInfo);

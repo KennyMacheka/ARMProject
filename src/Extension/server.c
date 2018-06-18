@@ -24,6 +24,10 @@
 static pthread_mutex_t lock;
 static int numClients = 0;
 struct clientThread{
+  //Add some kind of timing structure, here, look it up.
+  //if whatever you find uses processor ticks, account for this
+  //At the beginning of clientServerInteraction, start the timer,
+  //Follow the instructions at the bottom of the loop
   char username[MAX_USERNAME_SIZE+1];
   int socket;
   pthread_t *thread;
@@ -39,7 +43,6 @@ struct clientThread *initialiseThreadStruct(){
   client->thread = NULL;
   client->prev = NULL;
   client->next = NULL;
-
   return client;
 }
 
@@ -62,6 +65,7 @@ void *clientServerInteraction (void *clientSocket){
   struct DataPacket *packet = (struct DataPacket *) (malloc(sizeof(struct DataPacket)));
   packet->type = STOC_CONNECTION_ESTABLISHED;
   packet->argc = 0;
+  //Start clock here
 
   //First thing is to inform client that connection has been established
   bool validConnection = true;
@@ -71,9 +75,8 @@ void *clientServerInteraction (void *clientSocket){
   //Expect to get username from client
   //As both client and server are following a protocol, the client knows it has to do this
   //So if it doesn't sent the right datum, then connection will be closed
-  if (recievePacket(&packet, client->socket) != 0){
+  if (recievePacket(&packet, client->socket) != 0)
     validConnection = false;
-  }
 
   if (packet->type != CTOS_SEND_USERNAME)
     validConnection = false;
@@ -85,6 +88,17 @@ void *clientServerInteraction (void *clientSocket){
   //If this is a match, then we do this a few more times and then they are disqualified
   //Otherwise, if not a match, then no harm done
   while(validConnection){
+
+    recievePacket(&packet, client->socket);
+
+    switch(packet->type){
+
+    }
+
+
+    //Here, check if time elapsed is 10 minutes (this'll be reset every time we recieve a packet, but ignore that)
+    //If true, then validConnection should be set to false (the client will regularly send "STILL HERE" messages even when enacted
+
 
   }
 
@@ -158,19 +172,29 @@ int main(){
     clients->socket = accept(mainSocket, (struct sockaddr *) &clientAddress, &addressSize);
     clients->thread = (pthread_t *) malloc(sizeof(pthread_t));
     pthread_mutex_lock(&lock);
-    if (pthread_create(clients->thread, NULL, clientServerInteraction, clients) != 0){
-      serverEndConnection(clients->socket);
+    if (numClients == MAX_PLAYERS){
+      serverTooManyPlayers(clients->socket);
       shutdown(clients->socket, 2);
       freeThreadStruct(clients);
-      continue;
     }
-    printf("Connected.\n");
 
-    if (clients->prev)
-      clients->prev->next = clients;
+    else {
+      if (pthread_create(clients->thread, NULL, clientServerInteraction, clients) != 0) {
+        serverEndConnection(clients->socket);
+        shutdown(clients->socket, 2);
+        freeThreadStruct(clients);
+      } else {
+        numClients++;
+        printf("Connected.\n");
 
-    clients->next = initialiseThreadStruct();
-    clients = clients->next;
+        if (clients->prev)
+          clients->prev->next = clients;
+
+        clients->next = initialiseThreadStruct();
+        clients = clients->next;
+      }
+    }
+
     pthread_mutex_unlock(&lock);
   }
 
