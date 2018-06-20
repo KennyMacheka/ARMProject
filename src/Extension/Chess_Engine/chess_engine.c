@@ -120,6 +120,57 @@ struct Game *setupGame (){
   return game;
 }
 
+struct Move setupMoveStruct (struct Game *game, int startRow, int startCol, int endRow, int endCol,
+                            bool isEnpassant){
+  struct Move move;
+  move.startRow = startRow;
+  move.startCol = startCol;
+  move.endRow = endRow;
+  move.endCol = endCol;
+  move.isCastling = false;
+  move.isEnPassant = false;
+
+  struct Piece piece = game->board[startRow][startCol];
+  struct Piece (*pieces)[16] = piece.colour == WHITE ? &game->whitePieces : &game->blackPieces;
+  int numPieces = piece.colour == WHITE ? game->numWhitePieces : game->numBlackPieces;
+
+  for (int i = 0; i<numPieces; i++){
+    if ((*pieces)[i].row == startRow && (*pieces)[i].col == startCol){
+      move.piece = &(*pieces)[i];
+      break;
+    }
+  }
+
+  return move;
+}
+
+struct Move setupMoveStructCastling (struct Game *game, int startRow1, int startCol1, int endRow1,
+                                     int endCol1, int startRow2, int startCol2, int endRow2, int endCol2){
+  //King is always first piece
+  struct Move move1 = setupMoveStruct(game, startRow1, startCol1, endRow1, endCol1, false);
+  struct Move move2 = setupMoveStruct(game, startRow2, startCol2, endRow2, endCol2, false);
+  struct Move move = move1;
+  move.isEnPassant = false;
+  move.isCastling = true;
+
+  move.startRow2 = move2.startRow;
+  move.startCol2 = move2.startCol;
+  move.endRow2 = move2.endRow;
+  move.endCol2 = move2.endCol;
+  move.piece2 = move2.piece;
+
+  return move;
+}
+
+struct Move setupMovesStructPromotion (struct Game *game, int startRow, int startCol, int endRow, int endCol,
+                                       enum PIECES promotionPiece){
+
+  struct Move move = setupMoveStruct(game, startRow, startCol, endRow, endCol, false);
+  move.promotionPiece = promotionPiece;
+  move.promotionPiece = promotionPiece;
+  return move;
+}
+
 void deepCopy (struct Game *copyFrom, struct Game *copyTo){
   copyTo->matchState = copyFrom->matchState;
   copyTo->checkState = copyFrom->checkState;

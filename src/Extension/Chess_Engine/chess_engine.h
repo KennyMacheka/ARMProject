@@ -99,6 +99,12 @@ struct PossibleMoves{
 
 
 struct Game *setupGame ();
+struct Move setupMoveStruct (struct Game *game, int startRow, int startCol, int endRow, int endCol,
+                             bool isEnpassant);
+struct Move setupMoveStructCastling (struct Game *game, int startRow1, int startCol1, int endRow1,
+                                     int endCol1, int startRow2, int startCol2, int endRow2, int endCol2);
+struct Move setupMovesStructPromotion (struct Game *game, int startRow, int startCol, int endRow, int endCol,
+                                       enum PIECES promotionPiece);
 bool requestMove (struct Game *game, struct Move *move);
 
 
