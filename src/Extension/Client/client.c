@@ -10,8 +10,6 @@
 #include "rendering_global_vars.h"
 #include "texture.h"
 
-#define PIECE_PATH_LEN 14
-
 //Working directory is extension
 void setupNetwork();
 void dismantleNetwork();
@@ -21,7 +19,7 @@ struct serverDetails{
   struct addrinfo hints;
   struct addrinfo *serverInfo;
   struct addrinfo *server;
-  struct DataPacket *packet;
+  struct dataPacket *packet;
   char username[MAX_USERNAME_SIZE+1];
   int numPlayers;
   char playersAvailable[MAX_PLAYERS][MAX_USERNAME_SIZE+1];
@@ -104,7 +102,14 @@ void dismantleNetwork(){
 
 int main(){
 
-  char *usernamePrompt = "Enter a username (max 9 characters)";
+  enum CLIENT_STAGE{
+    BEGINNING,
+    LOBBY,
+    GAMES_RUNNING
+  };
+
+  enum CLIENT_STAGE stage = LOBBY;
+  char usernamePrompt[8+MAX_USERNAME_SIZE+2] = {'U','s','e','r','n','a','m','e',':',' ','\0'};
 
   //A structure that will store monitor information such as the width and height of the monitor
   SDL_DisplayMode monitorInformation;
@@ -121,24 +126,20 @@ int main(){
 
   //Window title which will be shown on the window bar
   const char *windowTitle = "GNU C Coders- Chess";
+
   //The name of the true type font that will be used in the program
-  const char *calibri = "Fonts\\Calibri.ttf";
+  const char *calibri = "Font/Calibri.ttf";
+  TTF_Font *calibri18 = NULL;
+  struct Texture *userInputTexture = setupTexture();
+  SDL_Rect userInputRect;
+
   const char *boardPath = "Images/board.png";
-  const char whitePiecesPaths[DISTINCT_PIECES][PIECE_PATH_LEN+1] = {[PAWN] = "Images/wp.png",
-                                                          [KNIGHT] = "Images/wn.png", [BISHOP] = "Images/wb.png",
-                                                          [ROOK] = "Images/wr.png", [QUEEN] = "Images/wq.png",
-                                                          [KING] = "Images/wk.png"};
-
-  const char blackPiecesPaths[DISTINCT_PIECES][PIECE_PATH_LEN+1] = {[PAWN] = "Images/wp.png",
-                                                      [KNIGHT] = "Images/wn.png", [BISHOP] = "Images/wb.png",
-                                                      [ROOK] = "Images/wr.png", [QUEEN] = "Images/wq.png",
-                                                      [KING] = "Images/wk.png"};
-
   struct Texture *whitePiecesPics[DISTINCT_PIECES];
   struct Texture *blackPiecesPics[DISTINCT_PIECES];
-
   SDL_Rect chessBoard;
   struct Texture *boardPic;
+
+  SDL_Rect alertBox;
 
   if (SDL_Init(SDL_INIT_VIDEO|SDL_INIT_EVENTS) < 0){
     fprintf(stderr, "Failed to initialise SDL.\n");
@@ -174,8 +175,13 @@ int main(){
     chessBoard.h = windowWidth * chessBoardScale;
   }
 
-  chessBoard.x = chessBoard.w*chessBoardPos_x_scale;
-  chessBoard.y = chessBoard.h*chessBoardPos_y_scale;
+  chessBoard.x = chessBoard.w * chessBoardPos_x_scale;
+  chessBoard.y = chessBoard.h * chessBoardPos_y_scale;
+
+  alertBox.x = windowWidth * alertBoxPos_x_scale;
+  alertBox.y = 0;
+  alertBox.w = windowWidth* alertBoxWidth_scale;
+  alertBox.h = windowHeight;
 
   window = SDL_CreateWindow(windowTitle, window_x, window_y, windowWidth, windowHeight, SDL_WINDOW_SHOWN);
   if (!window){
@@ -199,6 +205,11 @@ int main(){
     return EXIT_FAILURE;
   }
 
+  if(!(calibri18 = TTF_OpenFont (calibri,18))){
+    fprintf(stderr, "Failed to load calibri font.\n");
+    return EXIT_FAILURE;
+  }
+
   if(!(boardPic = setupTexture())){
     fprintf(stderr, "Failed to initialise texture.\n");
     return EXIT_FAILURE;
@@ -206,6 +217,14 @@ int main(){
 
   if(!loadImage(boardPic, renderer, boardPath, false, 0, 0, 0)){
     fprintf(stderr, "Failed to load board pic.\n");
+    return EXIT_FAILURE;
+  }
+
+
+  SDL_Color white = {255,255,255,255};
+
+  if(!loadText(userInputTexture, calibri18, usernamePrompt, white, renderer)){
+    fprintf(stderr, "Failed to load text.\n");
     return EXIT_FAILURE;
   }
 
@@ -220,6 +239,11 @@ int main(){
     }
   }
 
+  userInputRect.x = windowWidth * usernamePos_x_scale;
+  userInputRect.y = windowHeight * usernamePos_y_scale;
+  userInputRect.w = usernameWidth;
+  userInputRect.h = usernameHeight;
+
 
   bool endProgram = false;
   SDL_Event event;
@@ -228,7 +252,19 @@ int main(){
     SDL_SetRenderDrawColor(renderer, 0, 0, 0, 0);
     SDL_RenderClear(renderer);
 
-    renderTexture(boardPic, renderer, &chessBoard, NULL);
+    //SDL_SetRenderDrawColor(renderer, 51, 255, 51, 0);
+    //SDL_RenderFillRect(renderer, &alertBox);
+
+
+    if (stage == BEGINNING){
+      //Grey
+      SDL_SetRenderDrawColor(renderer, 88, 88, 88, 0);
+      SDL_RenderFillRect(renderer, &userInputRect);
+    }
+
+    else{
+      renderTexture(boardPic, renderer, &chessBoard, NULL);
+    }
 
     while (SDL_PollEvent(&event)!=0){
       //If connected to server should send message to quit

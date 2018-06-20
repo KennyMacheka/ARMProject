@@ -4,7 +4,7 @@
 #include "network_protocols.h"
 #include "stdlib.h"
 
-int sendPacket (struct DataPacket *packet, int socket){
+int sendPacket (struct dataPacket *packet, int socket){
   char *bytes = (char *) packet;
   int bytesSent = 0;
 
@@ -18,7 +18,7 @@ int sendPacket (struct DataPacket *packet, int socket){
   return bytesSent;
 }
 
-int recievePacket (struct DataPacket **packet, int socket){
+int recievePacket (struct dataPacket **packet, int socket){
   /** A fixed amount of bytes is sent per packet, no matter what
       message is being sent. This is so we know much much data is expected
 
@@ -48,27 +48,70 @@ int recievePacket (struct DataPacket **packet, int socket){
   if (*packet)
     free(*packet);
 
-  *packet = (struct DataPacket *) bytes;
+  *packet = (struct dataPacket *) bytes;
 
   return 0;
 }
 
 void serverEndConnection (int socket){
-  struct DataPacket packet;
+  struct dataPacket packet;
   packet.type = STOC_CONNECTION_ENDED;
   packet.argc = 0;
   sendPacket(&packet, socket);
 }
 
 void serverTooManyPlayers (int socket){
-  struct DataPacket packet;
+  struct dataPacket packet;
   packet.type = STOC_TOO_MANY_PLAYERS;
   packet.argc = 0;
   sendPacket(&packet, socket);
 }
 void clientEndConnection (int socket){
-  struct DataPacket packet;
+  struct dataPacket packet;
   packet.type = CTOS_END_CONNECTION;
   packet.argc = 0;
+  sendPacket(&packet, socket);
+}
+
+void sendListOfPlayers(int socket, struct clientThread *clients){
+  struct dataPacket packet;
+  packet.type = STOC_LIST_OF_PLAYERS;
+  packet.argc = 0;
+
+  for (struct clientThread *client = clients->prev; client != NULL; client = client->prev){
+    if (strlen(client->username) == 0)
+      continue;
+
+    strcpy(packet.args[packet.argc], client->username);
+    packet.argc++;
+  }
+
+  for (struct clientThread *client = clients->next; client != NULL; client = client->next){
+    if (strlen(client->username) == 0)
+      continue;
+
+    strcpy(packet.args[packet.argc], client->username);
+    packet.argc++;
+  }
+
+  sendPacket(&packet, socket);
+
+}
+
+void sendNoArgsPacket (int socket, uint8_t message){
+  struct dataPacket packet;
+  packet.type = message;
+  packet.argc = 0;
+  sendPacket(&packet, socket);
+}
+
+void serverForwardMatchRequest(int socket, int gameId){
+  struct dataPacket packet;
+  packet.type = STOC_CHALLENGE_REQUEST;
+  packet.argc = 1;
+
+  int *ptr = (int *) &packet.args[0][0];
+  *ptr = gameId;
+
   sendPacket(&packet, socket);
 }

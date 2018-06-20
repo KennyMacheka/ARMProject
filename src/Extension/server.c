@@ -4,9 +4,9 @@
 #define _GNU_SOURCE
 #include <stdio.h>
 #include <stdlib.h>
-#include <pthread.h>
 #include <stdbool.h>
 #include <string.h>
+#include <time.h>
 #include "network_protocols.h"
 
 /*
@@ -23,20 +23,77 @@
 
 static pthread_mutex_t lock;
 static int numClients = 0;
-struct clientThread{
-  //Add some kind of timing structure, here, look it up.
-  //if whatever you find uses processor ticks, account for this
-  //At the beginning of clientServerInteraction, start the timer,
-  //Follow the instructions at the bottom of the loop
-  char username[MAX_USERNAME_SIZE+1];
-  int socket;
-  pthread_t *thread;
-  struct clientThread *next;
-  struct clientThread *prev;
+static int gameId = 0;
+
+struct match{
+  enum TURN{
+    PLAYER,
+    PLAYER2
+  }turn;
+  int gameId;
+  struct clientThread *player1;
+  struct clientThread *player2;
+  enum COLOUR player1_colour;
+  enum COLOUR player2_colour;
+  bool matchStarted;
+  struct Game *game;
 };
+
+struct matchesStruct{
+  bool initialised;
+  struct match game;
+  struct machesStruct *next;
+  struct matchesStruct *prev;
+};
+
+struct matchesStruct *newestMatch = NULL;
+struct matchesStruct *head = NULL;
 
 void *clientServerInteraction (void *clientSocket);
 struct clientThread *initialiseThreadStruct();
+void freeMatchStruct(struct matchesStruct *match);
+struct matchesStruct *setupMatchStruct();
+struct clientThread *getPlayer (struct clientThread *clients, char *username);
+
+
+struct matchesStruct *setupMatchStruct(){
+  struct matchesStruct *match = (struct matchesStruct *) malloc(sizeof(struct matchesStruct));
+  match->initialised = false;
+  match->next = NULL;
+  match->prev = NULL;
+  return match;
+}
+
+void freeMatchStruct(struct matchesStruct *match){
+  if (!match)
+    return;
+
+  if (match->prev)
+    match->prev->next = match->next;
+
+  if (match->initialised){
+    free(match->game.game);
+  }
+
+  free(match);
+}
+
+struct clientThread *getPlayer (struct clientThread *clients, char *username){
+  if(!clients)
+    return NULL;
+
+  for (struct clientThread *client = clients->prev; client != NULL; client = client->prev){
+    if (strcmp(client->username,username) == 0)
+      return client;
+  }
+
+  for (struct clientThread *client = clients->next; client != NULL; client = client->next){
+    if (strcmp(client->username,username) == 0)
+      return client;
+  }
+
+  return NULL;
+}
 
 struct clientThread *initialiseThreadStruct(){
   struct clientThread *client = (struct clientThread *) malloc(sizeof(struct clientThread));
@@ -62,9 +119,10 @@ void *clientServerInteraction (void *clientSocket){
   //Add time out, so if nothing happens after certain time, disconnet client
   printf("Interacting with client.\n");
   struct clientThread *client = (struct clientThread *) clientSocket;
-  struct DataPacket *packet = (struct DataPacket *) (malloc(sizeof(struct DataPacket)));
+  struct dataPacket *packet = (struct dataPacket *) (malloc(sizeof(struct dataPacket)));
   packet->type = STOC_CONNECTION_ESTABLISHED;
   packet->argc = 0;
+  uintmax_t  timeElapsed;
   //Start clock here
 
   //First thing is to inform client that connection has been established
@@ -78,6 +136,7 @@ void *clientServerInteraction (void *clientSocket){
   if (recievePacket(&packet, client->socket) != 0)
     validConnection = false;
 
+  //The occasional "Still online" packets are sent after sending a username
   if (packet->type != CTOS_SEND_USERNAME)
     validConnection = false;
 
@@ -87,30 +146,83 @@ void *clientServerInteraction (void *clientSocket){
   //If we get any unexpected messages from the client, we ask them to resend
   //If this is a match, then we do this a few more times and then they are disqualified
   //Otherwise, if not a match, then no harm done
+  client->lastPacket = (uintmax_t )time(NULL);
   while(validConnection){
 
-    recievePacket(&packet, client->socket);
+    if (recievePacket(&packet, client->socket) == 0){
+      client->lastPacket = (uintmax_t) time(NULL); //packet has been sent,
 
-    switch(packet->type){
-      case CTOS_END_CONNECTION:
-        validConnection = false;
-        break;
+      switch(packet->type){
+
+        case CTOS_STILL_ONLINE:
+          break;
+
+        case CTOS_GET_PLAYERS:
+          pthread_mutex_lock(&lock);
+          sendListOfPlayers(client->socket, client);
+          pthread_mutex_unlock(&lock);
+          break;
+
+        case CTOS_CHALLENGE_PLAYER:
+          //Check player is still online
+          pthread_mutex_lock(&lock);
+          struct clientThread *opponent = getPlayer(client, packet->args[1]);
+          if (!opponent){
+            sendNoArgsPacket(client->socket, STOC_CANNOT_CHALLENGE_PLAYER);
+          }else{
+            newestMatch = setupMatchStruct();
+            newestMatch->game.player1 = client;
+            newestMatch->game.player2 = opponent;
+            newestMatch->game.gameId = gameId;
+            newestMatch->game.matchStarted = false;
+            serverForwardMatchRequest(opponent->socket, gameId);
+            gameId++;
+          }
+          pthread_mutex_unlock(&lock);
+          break;
+
+        case CTOS_ACCEPT_REQUEST:
+          pthread_mutex_lock(&lock);
+          int id = * ((int *) &packet->args[0][0]);
+          //Now I need get game struct and start game
+          break;
+
+        case CTOS_MOVE:
+          break;
+
+        case CTOS_OFFER_DRAW:
+          break;
+
+        case CTOS_RESIGN:
+          break;
+
+        case CTOS_CLAIM_DRAW_50_MOVE:
+          break;
+
+        case CTOS_REJECT_DRAW_OFFER:
+          break;
+
+        case CTOS_END_CONNECTION:
+          validConnection = false;
+          break;
+
+        default:
+          break;
+      }
     }
 
 
-    //Here, check if time elapsed is 10 minutes (this'll be reset every time we recieve a packet, but ignore that)
-    //If true, then validConnection should be set to false (the client will regularly send "STILL HERE" messages even when enacted
-
-
+    timeElapsed = (uintmax_t ) time(NULL);
+    if (timeElapsed - client->lastPacket >= SERVER_CLIENT_TIMEOUT)
+      validConnection = false;
   }
 
   pthread_mutex_lock(&lock);
-  serverEndConnection(client->socket);
+  sendNoArgsPacket(client->socket, STOC_CONNECTION_ENDED);
   shutdown(client->socket, 2);
   freeThreadStruct(client);
   numClients--;
   pthread_mutex_unlock(&lock);
-
   if (packet)
     free(packet);
   return NULL;
@@ -120,6 +232,9 @@ int main(){
   int status;
   int mainSocket;
   struct clientThread *clients = initialiseThreadStruct();
+  head = setupMatchStruct();
+  newestMatch = head->next;
+  newestMatch->prev = head;
 
   struct addrinfo hints;
   struct addrinfo *serverInfo = NULL;
@@ -173,16 +288,17 @@ int main(){
     addressSize = sizeof(clientAddress);
     clients->socket = accept(mainSocket, (struct sockaddr *) &clientAddress, &addressSize);
     clients->thread = (pthread_t *) malloc(sizeof(pthread_t));
+    clients->username[0] = '\0';
     pthread_mutex_lock(&lock);
     if (numClients == MAX_PLAYERS){
-      serverTooManyPlayers(clients->socket);
+      sendNoArgsPacket(clients->socket, STOC_TOO_MANY_PLAYERS);
       shutdown(clients->socket, 2);
       freeThreadStruct(clients);
     }
 
     else {
       if (pthread_create(clients->thread, NULL, clientServerInteraction, clients) != 0) {
-        serverEndConnection(clients->socket);
+        sendNoArgsPacket(clients->socket, STOC_CONNECTION_ENDED);
         shutdown(clients->socket, 2);
         freeThreadStruct(clients);
       } else {
@@ -201,6 +317,7 @@ int main(){
   }
 
   /**If i do end up breaking, remember to join threads, or terminate them.*/
+  freeMatchStruct(head);
   close(mainSocket);
   freeaddrinfo(serverInfo);
 
