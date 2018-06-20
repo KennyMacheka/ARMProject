@@ -105,13 +105,45 @@ void sendNoArgsPacket (int socket, uint8_t message){
   sendPacket(&packet, socket);
 }
 
-void serverForwardMatchRequest(int socket, int gameId){
+void sendOneArgIntPacket (int socket, uint8_t message, int arg){
   struct dataPacket packet;
-  packet.type = STOC_CHALLENGE_REQUEST;
+  packet.type = message;
   packet.argc = 1;
-
   int *ptr = (int *) &packet.args[0][0];
-  *ptr = gameId;
+  *ptr = arg;
+
+  sendPacket(&packet,socket);
+}
+
+void sendNormalMove(int socket, uint8_t message, int gameId, struct Move move){
+  struct dataPacket packet;
+  packet.type = message;
+  packet.argc = NORMAL_MOVE_ARGC;
+  * ((int *) (&packet.args[0][0])) = gameId;
+  * ((int *) (&packet.args[1][0])) = move.startRow;
+  * ((int *) (&packet.args[2][0])) = move.startCol;
+  * ((int *) (&packet.args[3][0])) = move.endRow;
+  * ((int *) (&packet.args[4][0])) = move.endCol;
+  * ((int *) (&packet.args[5][0])) = (int) move.isEnPassant;
+  * ((int *) (&packet.args[6][0])) = move.promotionPiece;
+
+  sendPacket(&packet, socket);
+}
+
+void sendCastlingMove(int socket, uint8_t message, int gameId, struct Move move){
+  struct dataPacket packet;
+  packet.type = message;
+  packet.argc = CASTLING_MOVE_ARGC;
+  * ((int *) (&packet.args[0][0])) = gameId;
+  * ((int *) (&packet.args[0][0])) = gameId;
+  * ((int *) (&packet.args[1][0])) = move.startRow;
+  * ((int *) (&packet.args[2][0])) = move.startCol;
+  * ((int *) (&packet.args[3][0])) = move.endRow;
+  * ((int *) (&packet.args[4][0])) = move.endCol;
+  * ((int *) (&packet.args[5][0])) = move.startRow2;
+  * ((int *) (&packet.args[6][0])) = move.startCol2;
+  * ((int *) (&packet.args[7][0])) = move.endRow2;
+  * ((int *) (&packet.args[8][0])) = move.endCol2;
 
   sendPacket(&packet, socket);
 }

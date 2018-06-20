@@ -8,6 +8,7 @@
 #include <string.h>
 #include <time.h>
 #include "network_protocols.h"
+#include "Chess_Engine/chess_engine.h"
 
 /*
     Here, user means client
@@ -25,12 +26,13 @@ static pthread_mutex_t lock;
 static int numClients = 0;
 static int gameId = 0;
 
+enum TURN{
+  PLAYER1,
+  PLAYER2
+};
+
 struct match{
-  enum TURN{
-    PLAYER,
-    PLAYER2
-  }turn;
-  int gameId;
+  enum TURN turn;
   struct clientThread *player1;
   struct clientThread *player2;
   enum COLOUR player1_colour;
@@ -40,21 +42,23 @@ struct match{
 };
 
 struct matchesStruct{
+  int gameId;
   bool initialised;
   struct match game;
-  struct machesStruct *next;
+  struct matchesStruct *next;
   struct matchesStruct *prev;
 };
 
 struct matchesStruct *newestMatch = NULL;
-struct matchesStruct *head = NULL;
 
 void *clientServerInteraction (void *clientSocket);
 struct clientThread *initialiseThreadStruct();
 void freeMatchStruct(struct matchesStruct *match);
 struct matchesStruct *setupMatchStruct();
 struct clientThread *getPlayer (struct clientThread *clients, char *username);
-
+struct matchesStruct *getMatch (int gameId);
+void sendMatchMessage (struct clientThread *client, struct matchesStruct *match,
+                       uint8_t message);
 
 struct matchesStruct *setupMatchStruct(){
   struct matchesStruct *match = (struct matchesStruct *) malloc(sizeof(struct matchesStruct));
@@ -71,11 +75,23 @@ void freeMatchStruct(struct matchesStruct *match){
   if (match->prev)
     match->prev->next = match->next;
 
+  if (match->next)
+    match->next->prev = match->prev;
+
   if (match->initialised){
     free(match->game.game);
   }
 
   free(match);
+}
+
+struct matchesStruct *getMatch (int gameId){
+  for (struct matchesStruct *match = newestMatch; match != NULL; match = match->prev){
+    if (match->gameId == gameId)
+      return match;
+  }
+
+  return NULL;
 }
 
 struct clientThread *getPlayer (struct clientThread *clients, char *username){
@@ -110,12 +126,24 @@ void freeThreadStruct (struct clientThread *client){
   if (client->prev)
     client->prev->next = client->next;
 
+  if (client->next)
+    client->next->prev = client->prev;
+
   free(client->thread);
   free(client);
 }
 
+void sendMatchMessage (struct clientThread *client, struct matchesStruct *match,
+                       uint8_t message){
 
-void *clientServerInteraction (void *clientSocket){
+  if (match->game.player1 != client)
+    sendOneArgIntPacket(match->game.player1->socket, message, match->gameId);
+  else if (match->game.player2 != client)
+    sendOneArgIntPacket(match->game.player2->socket, message, match->gameId);
+
+}
+
+void *clientServerInteraction (void *clientSocket){ //Consider adding a separate lock for game handling
   //Add time out, so if nothing happens after certain time, disconnet client
   printf("Interacting with client.\n");
   struct clientThread *client = (struct clientThread *) clientSocket;
@@ -147,6 +175,8 @@ void *clientServerInteraction (void *clientSocket){
   //If this is a match, then we do this a few more times and then they are disqualified
   //Otherwise, if not a match, then no harm done
   client->lastPacket = (uintmax_t )time(NULL);
+  int id;
+  struct matchesStruct *match;
   while(validConnection){
 
     if (recievePacket(&packet, client->socket) == 0){
@@ -170,37 +200,167 @@ void *clientServerInteraction (void *clientSocket){
           if (!opponent){
             sendNoArgsPacket(client->socket, STOC_CANNOT_CHALLENGE_PLAYER);
           }else{
-            newestMatch = setupMatchStruct();
+
+            struct matchesStruct *newMatch = setupMatchStruct();
+            newMatch->prev = newestMatch;
+            if (newestMatch)
+              newestMatch->next = newMatch;
+
+            newestMatch = newMatch;
             newestMatch->game.player1 = client;
             newestMatch->game.player2 = opponent;
-            newestMatch->game.gameId = gameId;
+            newestMatch->gameId = gameId;
             newestMatch->game.matchStarted = false;
-            serverForwardMatchRequest(opponent->socket, gameId);
+            sendOneArgIntPacket(opponent->socket, STOC_CHALLENGE_REQUEST, gameId);
             gameId++;
           }
           pthread_mutex_unlock(&lock);
           break;
 
-        case CTOS_ACCEPT_REQUEST:
+        case CTOS_ACCEPT_REQUEST: //Client has accepted match request
           pthread_mutex_lock(&lock);
-          int id = * ((int *) &packet->args[0][0]);
-          //Now I need get game struct and start game
+          id = * ((int *) &packet->args[0][0]);
+          match = getMatch(id);
+          if (match){ //Setup game, allocate colours, wait for player to make a move
+            int first = rand() % 2;
+            match->game.game = setupGame();
+            if (first == 0) { //Player 1 will be white
+              match->game.player1_colour = WHITE;
+              match->game.player2_colour = BLACK;
+              match->game.turn = PLAYER1;
+              //Player 1 is this current socket
+              sendOneArgIntPacket(match->game.player1->socket, STOC_GAME_STARTED, WHITE);
+              sendOneArgIntPacket(match->game.player2->socket, STOC_GAME_STARTED, BLACK);
+            }else{
+              match->game.player2_colour = WHITE;
+              match->game.player1_colour = BLACK;
+              match->game.turn = PLAYER2;
+              sendOneArgIntPacket(match->game.player1->socket, STOC_GAME_STARTED, BLACK);
+              sendOneArgIntPacket(match->game.player2->socket, STOC_GAME_STARTED, WHITE);
+            }
+          }
+          pthread_mutex_unlock(&lock);
           break;
 
-        case CTOS_MOVE:
+        case CTOS_MOVE: //Client had sent a move for a particular game, need to forward this to opponent
+          pthread_mutex_lock(&lock);
+          id = * ((int *) &packet->args[0][0]);
+          match = getMatch(id);
+          struct Move move;
+          int startRow = * ((int *) &packet->args[1][0]);
+          int startCol = * ((int *) &packet->args[2][0]);
+          int endRow = * ((int *) &packet->args[3][0]);
+          int endCol = * ((int *) &packet->args[4][0]);
+
+          if(packet->argc == NORMAL_MOVE_ARGC){
+            bool isEnpassant = (bool) *((int *) &packet->args[5][0]);
+            enum PIECES promotionPiece = * ((int *) &packet->args[6][0]);
+
+            if (promotionPiece == BLANK)
+              move = setupMoveStruct(match->game.game, startRow, startCol, endRow, endCol, isEnpassant);
+
+            else
+              move = setupMovesStructPromotion(match->game.game, startRow, startCol, endRow, endCol, promotionPiece);
+
+          }else if (packet->argc == CASTLING_MOVE_ARGC){
+            int startRow2 = * ((int *) &packet->args[5][0]);
+            int startCol2 = * ((int *) &packet->args[6][0]);
+            int endRow2 = * ((int *) &packet->args[7][0]);
+            int endCol2 = * ((int *) &packet->args[8][0]);
+            move = setupMoveStructCastling(match->game.game, startRow, startCol, endRow, endCol,
+                                           startRow2, startCol2, endRow2, endCol2);
+          }
+
+          requestMove(match->game.game, &move);
+
+          if (match->game.turn == PLAYER1){
+            if (packet->argc == NORMAL_MOVE_ARGC)
+              sendNormalMove(match->game.player2->socket, STOC_OPPONENT_MOVE, match->gameId, move);
+
+            else
+              sendCastlingMove(match->game.player2->socket, STOC_OPPONENT_MOVE, match->gameId, move);
+
+            match->game.turn = PLAYER2;
+          }else{
+            if (packet->argc == NORMAL_MOVE_ARGC)
+              sendNormalMove(match->game.player1->socket, STOC_OPPONENT_MOVE, match->gameId, move);
+
+            else
+              sendCastlingMove(match->game.player1->socket, STOC_OPPONENT_MOVE, match->gameId, move);
+
+            match->game.turn = PLAYER1;
+          }
+
+          if(match->game.game->matchState != NOT_OVER)
+            freeMatchStruct(match);
+
+          pthread_mutex_unlock(&lock);
           break;
 
         case CTOS_OFFER_DRAW:
+          pthread_mutex_lock(&lock);
+          id = * ((int *) &packet->args[0][0]);
+          match = getMatch(id);
+
+          if (match)
+            sendMatchMessage(client, match, STOC_DRAW_OFFERED);
+          pthread_mutex_unlock(&lock);
           break;
 
         case CTOS_RESIGN:
+          pthread_mutex_lock(&lock);
+          id = * ((int *) &packet->args[0][0]);
+          match = getMatch(id);
+          if (match) {
+            sendMatchMessage(client, match, STOC_OPPONENT_RESIGNED);
+            freeMatchStruct(match);
+          }
+          pthread_mutex_unlock(&lock);
           break;
 
         case CTOS_CLAIM_DRAW_50_MOVE:
+          pthread_mutex_lock(&lock);
+          id = * ((int *) &packet->args[0][0]);
+          match = getMatch(id);
+          if(match){
+            sendMatchMessage(client, match, STOC_OPPONENT_CLAIMED_50_MOVE);
+            if (match->game.game->fiftyMoveCount >= 50){
+              sendMatchMessage(client, match, STOC_OPPONENT_CLAIMED_50_MOVE);
+              freeMatchStruct(match);
+            }
+          }
+          pthread_mutex_unlock(&lock);
           break;
 
         case CTOS_REJECT_DRAW_OFFER:
+          pthread_mutex_lock(&lock);
+          id = * ((int *) &packet->args[0][0]);
+          match = getMatch(id);
+          if (match)
+            sendMatchMessage(client, match, STOC_DRAW_OFFER_REJECTED);
+
+          pthread_mutex_unlock(&lock);
           break;
+
+        case CTOS_ACCEPT_DRAW_OFFER:
+          pthread_mutex_lock(&lock);
+          id = * ((int *) &packet->args[0][0]);
+          match = getMatch(id);
+          if (match){
+            sendMatchMessage(client, match, STOC_DRAW_OFFER_ACCEPTED);
+            freeMatchStruct(match);
+          }
+
+          pthread_mutex_unlock(&lock);
+          break;
+
+        case CTOS_REJECT_MATCH_REQUEST: //Other play doesn't want to play
+          pthread_mutex_lock(&lock);
+          match = getMatch(id);
+          if (match){
+            sendMatchMessage(client, match, STOC_CANNOT_CHALLENGE_PLAYER);
+            freeMatchStruct(match);
+          }
 
         case CTOS_END_CONNECTION:
           validConnection = false;
@@ -220,6 +380,21 @@ void *clientServerInteraction (void *clientSocket){
   pthread_mutex_lock(&lock);
   sendNoArgsPacket(client->socket, STOC_CONNECTION_ENDED);
   shutdown(client->socket, 2);
+  for (match = newestMatch; match != NULL;){
+    struct matchesStruct *prev = match->prev;
+    if (match->game.player1 == client || match->game.player2 == client) {
+      if (match->game.player1 == client)
+        sendOneArgIntPacket(match->game.player2->socket, STOC_OPPONENT_LEFT, match->gameId);
+
+      else
+        sendOneArgIntPacket(match->game.player1->socket, STOC_OPPONENT_LEFT, match->gameId);
+
+      freeMatchStruct(match);
+    }
+
+    match = prev;
+  }
+
   freeThreadStruct(client);
   numClients--;
   pthread_mutex_unlock(&lock);
@@ -229,12 +404,10 @@ void *clientServerInteraction (void *clientSocket){
 }
 
 int main(){
+  srand(time(NULL));
   int status;
   int mainSocket;
   struct clientThread *clients = initialiseThreadStruct();
-  head = setupMatchStruct();
-  newestMatch = head->next;
-  newestMatch->prev = head;
 
   struct addrinfo hints;
   struct addrinfo *serverInfo = NULL;
@@ -317,7 +490,9 @@ int main(){
   }
 
   /**If i do end up breaking, remember to join threads, or terminate them.*/
-  freeMatchStruct(head);
+  for (struct matchesStruct *match = newestMatch; match != NULL; match = match->prev)
+    freeMatchStruct(newestMatch);
+
   close(mainSocket);
   freeaddrinfo(serverInfo);
 
