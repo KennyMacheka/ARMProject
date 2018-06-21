@@ -31,16 +31,21 @@ add_executable(Assembler
                src/Emulator/processor_data_handling.c
                src/Emulator/processor_data_handling.h)
 
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "src/Extension/")
+
 add_executable(Client
         src/Extension/Chess_Engine/chess_engine.c
         src/Extension/Chess_Engine/chess_engine.h
         src/Extension/Client/client.c
         src/Extension/network_protocols.h
-        src/Extension/network_protocols.c)
+        src/Extension/network_protocols.c
+        src/Extension/Client/sdl_utilities.h src/Extension/Client/sdl_utilities.c src/Extension/Client/texture.h src/Extension/Client/texture.c src/Extension/Client/SDL_Libraries.h src/Extension/Client/rendering_global_vars.c src/Extension/Client/rendering_global_vars.h)
 
 add_executable(Server
                src/Extension/server.c
-               src/Extension/network_protocols.h src/Extension/network_protocols.c)
+               src/Extension/network_protocols.h src/Extension/network_protocols.c
+               src/Extension/Chess_Engine/chess_engine.h
+               src/Extension/Chess_Engine/chess_engine.c)
 
 target_link_libraries(Assembler m)
 target_link_libraries(Client SDL2 SDL2_ttf SDL2_image)
