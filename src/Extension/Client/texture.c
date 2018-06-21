@@ -12,8 +12,10 @@ struct Texture *setupTexture(){
 }
 
 void freeTexture(struct Texture *texture){
-
-  SDL_DestroyTexture(texture->texture);
+  if (texture->texture) {
+    SDL_DestroyTexture(texture->texture);
+    texture->texture = NULL;
+  }
   texture->width = 0;
   texture->height = 0;
 }

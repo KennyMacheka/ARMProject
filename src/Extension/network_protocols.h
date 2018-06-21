@@ -21,8 +21,8 @@
 #define PORT_STR "23556"
 #define BACKLOG 20
 #define HOST_NAME "kenny-Aspire-ES1-521"
-#define MAX_PLAYERS 70
-#define MAX_USERNAME_SIZE 9
+#define MAX_PLAYERS 20
+#define MAX_USERNAME_SIZE 15
 #define PACKET_SIZE 705
 #define MAX_STRINGS 70
 #define SERVER_CLIENT_TIMEOUT 10
@@ -33,7 +33,7 @@
 
 #define STOC_CONNECTION_ESTABLISHED 1 //No arguments
 #define CTOS_SEND_USERNAME 2
-#define STOC_USERNAME_INVALID 3
+#define STOC_USERNAME_TAKEN 3
 #define CTOS_GET_PLAYERS 4
 #define CTOS_CHALLENGE_PLAYER 5 //player_username
 #define STOC_GAME_STARTED 6 //gameId, colour
@@ -61,6 +61,7 @@
 #define STOC_OPPONENT_RESIGNED 27
 #define STOC_OPPONENT_CLAIMED_50_MOVE 28
 #define STOC_DRAW_OFFER_REJECTED 29
+#define STOC_USERNAME_VALID 30
 
 
 //STOC = server to client
@@ -84,6 +85,7 @@ struct clientThread{
   pthread_t *thread;
   struct clientThread *next;
   struct clientThread *prev;
+  bool validPlayer;
 };
 
 

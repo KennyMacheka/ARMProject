@@ -3,6 +3,8 @@
 //
 #define _GNU_SOURCE
 #include <pthread.h>
+#include <string.h>
+#include <time.h>
 #include "SDL_Libraries.h"
 #include "sdl_utilities.h"
 #include "../Chess_Engine/chess_engine.h"
@@ -10,9 +12,17 @@
 #include "rendering_global_vars.h"
 #include "texture.h"
 
+#define USERNAME_PROMPT 0
+#define USER_NAME_TAKEN 1
+#define CANNOT_CONNECT 2
+#define TOTAL_OUTPUT_TEXTS 3
+#define MAX_OUTPUT_TEXT_LEN 50
+
+
 //Working directory is extension
 void setupNetwork();
 void dismantleNetwork();
+void *sendPings (void *dummy);
 
 struct serverDetails{
   int status;
@@ -73,6 +83,7 @@ void setupNetwork(){
 
   if (network.server == NULL){
     printf("Failed to establish socket and connection.\n");
+    dismantleNetwork();
   }
 
   else {
@@ -88,19 +99,44 @@ void setupNetwork(){
   }
 }
 
+void *sendPings (void *dummy){
+  uintmax_t lastPacket = (uintmax_t) time(NULL);
+
+  while (network.socket != -1){
+    uintmax_t current = (uintmax_t) time(NULL);
+
+    if (current - lastPacket >= CLIENT_PING_INTERVAL){
+      sendNoArgsPacket(network.socket, CTOS_STILL_ONLINE);
+      lastPacket = current;
+    }
+  }
+
+  return NULL;
+}
+
 void dismantleNetwork(){
-  if (network.serverInfo)
+
+  if (network.serverInfo) {
     freeaddrinfo(network.serverInfo);
+    network.serverInfo = NULL;
+  }
+
   //No need to free network.server, as it came from network.serverinfo
-  if (network.packet)
+  if (network.packet) {
     free(network.packet);
+    network.packet = NULL;
+  }
 
   if (network.socket != -1)
     shutdown(network.socket, 2);
+
+  network.socket = -1;
 }
 
 
 int main(){
+
+  pthread_t *thread = NULL;
 
   enum CLIENT_STAGE{
     BEGINNING,
@@ -108,8 +144,23 @@ int main(){
     GAMES_RUNNING
   };
 
-  enum CLIENT_STAGE stage = LOBBY;
-  char usernamePrompt[8+MAX_USERNAME_SIZE+2] = {'U','s','e','r','n','a','m','e',':',' ','\0'};
+  enum KEY_STATE{
+    KEY_DOWN,
+    KEY_UP,
+  }keyState;
+  keyState = KEY_UP;
+
+  enum CLIENT_STAGE stage = BEGINNING;
+  char outputText[TOTAL_OUTPUT_TEXTS][MAX_OUTPUT_TEXT_LEN+1] = {{"Enter a username (1-9 characters)"},
+                                                                {"Username is taken"},
+                                                                {"Cannot connect to network. Try again."}};
+  int outputTextPos = USERNAME_PROMPT;
+  SDL_Rect outputTextRects[TOTAL_OUTPUT_TEXTS];
+  struct Texture *outputTextTextures[TOTAL_OUTPUT_TEXTS];
+  char username[MAX_USERNAME_SIZE+1] = {'\0'};
+  SDL_Rect usernameTextRect;
+  struct Texture *usernameTextTexture = setupTexture();
+  int inputPos = 0;
 
   //A structure that will store monitor information such as the width and height of the monitor
   SDL_DisplayMode monitorInformation;
@@ -130,8 +181,11 @@ int main(){
   //The name of the true type font that will be used in the program
   const char *calibri = "Font/Calibri.ttf";
   TTF_Font *calibri18 = NULL;
+  TTF_Font *calibri24 = NULL;
   struct Texture *userInputTexture = setupTexture();
-  SDL_Rect userInputRect;
+  bool inputChanged = false;
+  bool inputLoaded = false;
+
 
   const char *boardPath = "Images/board.png";
   struct Texture *whitePiecesPics[DISTINCT_PIECES];
@@ -140,6 +194,7 @@ int main(){
   struct Texture *boardPic;
 
   SDL_Rect alertBox;
+  SDL_Rect userInputRect;
 
   if (SDL_Init(SDL_INIT_VIDEO|SDL_INIT_EVENTS) < 0){
     fprintf(stderr, "Failed to initialise SDL.\n");
@@ -205,7 +260,7 @@ int main(){
     return EXIT_FAILURE;
   }
 
-  if(!(calibri18 = TTF_OpenFont (calibri,18))){
+  if(!(calibri18 = TTF_OpenFont (calibri,18)) || !(calibri24 = TTF_OpenFont(calibri, 24))){
     fprintf(stderr, "Failed to load calibri font.\n");
     return EXIT_FAILURE;
   }
@@ -223,10 +278,20 @@ int main(){
 
   SDL_Color white = {255,255,255,255};
 
-  if(!loadText(userInputTexture, calibri18, usernamePrompt, white, renderer)){
-    fprintf(stderr, "Failed to load text.\n");
-    return EXIT_FAILURE;
+
+  for (int i = 0; i<TOTAL_OUTPUT_TEXTS; i++) {
+    outputTextTextures[i] = setupTexture();
+    if (!loadText(outputTextTextures[i], calibri24, outputText[i], white, renderer)) {
+      fprintf(stderr, "Failed to load text.\n");
+      return EXIT_FAILURE;
+    }
+    outputTextRects[i].w = outputTextTextures[i]->width;
+    outputTextRects[i].h = outputTextTextures[i]->height;
+    outputTextRects[i].x = alertBox.x;
+    outputTextRects[i].y = windowHeight*usernamePos_y_scale;
   }
+
+
 
   for (int i = 0; i < DISTINCT_PIECES; i++){
     whitePiecesPics[i] = setupTexture();
@@ -239,30 +304,50 @@ int main(){
     }
   }
 
+
   userInputRect.x = windowWidth * usernamePos_x_scale;
   userInputRect.y = windowHeight * usernamePos_y_scale;
   userInputRect.w = usernameWidth;
   userInputRect.h = usernameHeight;
 
+  usernameTextRect.x = userInputRect.x+userInputPaddingx;
+  usernameTextRect.y = userInputRect.y;
+
 
   bool endProgram = false;
   SDL_Event event;
+
   setupNetwork();
   while (!endProgram){
     SDL_SetRenderDrawColor(renderer, 0, 0, 0, 0);
     SDL_RenderClear(renderer);
 
-    //SDL_SetRenderDrawColor(renderer, 51, 255, 51, 0);
-    //SDL_RenderFillRect(renderer, &alertBox);
+    //Green
+    SDL_SetRenderDrawColor(renderer, 51, 255, 51, 0);
+    SDL_RenderFillRect(renderer, &alertBox);
 
 
     if (stage == BEGINNING){
       //Grey
       SDL_SetRenderDrawColor(renderer, 88, 88, 88, 0);
       SDL_RenderFillRect(renderer, &userInputRect);
+
+      renderTexture(outputTextTextures[outputTextPos], renderer, &outputTextRects[outputTextPos], NULL);
+      if (inputChanged){
+        if( loadText(usernameTextTexture, calibri24, username, white, renderer)){
+          inputLoaded = true;
+          usernameTextRect.w = usernameTextTexture->width;
+          usernameTextRect.h = usernameTextTexture->height;
+        }else{
+          inputLoaded = false;
+        }
+      }
+
+      if(inputLoaded)
+        renderTexture(usernameTextTexture, renderer, &usernameTextRect, NULL);
     }
 
-    else{
+    else if (stage == LOBBY){
       renderTexture(boardPic, renderer, &chessBoard, NULL);
     }
 
@@ -270,16 +355,62 @@ int main(){
       //If connected to server should send message to quit
       if (event.type == SDL_QUIT){
         endProgram = true;
+      }else if (event.type == SDL_KEYDOWN && stage == BEGINNING && keyState == KEY_UP) {
+        keyState = KEY_DOWN;
+        SDL_Keycode key = event.key.keysym.sym;
+        if (key == SDLK_BACKSPACE && inputPos>0){
+          inputPos--;
+          username[inputPos] = '\0';
+          inputChanged = true;
+        }else if (SDLK_a <= key && key <= SDLK_z && inputPos < MAX_USERNAME_SIZE) {
+          const char *c = SDL_GetKeyName(key);
+          username[inputPos++] = 'a' + (c[0] - 'A');
+          username[inputPos] = '\0';
+          inputChanged = true;
+        }else if (key == SDLK_RETURN && inputPos > 0){ //Send username to server
+          if (network.socket != -1){
+            network.packet->type = CTOS_SEND_USERNAME;
+            network.packet->argc = 1;
+            strcpy(network.packet->args[0], username);
+            if (sendPacket(network.packet, network.socket) == -1){
+              outputTextPos = CANNOT_CONNECT; //Will try and send again
+              continue;
+            }
+            printf("recieving next packet.\n");
+            recievePacket(&network.packet, network.socket);
+            printf("recieved packet. %d\n", network.packet->type);
+            if (network.packet->type == STOC_USERNAME_TAKEN){
+              outputTextPos = USER_NAME_TAKEN;
+            }else if (network.packet->type == STOC_USERNAME_VALID){
+              printf("username is valid.");
+              stage = LOBBY;
+              thread = (pthread_t *) malloc(sizeof(pthread_t));
+              pthread_create(thread, NULL, sendPings, NULL);
+            }
+          } else{
+            outputTextPos = CANNOT_CONNECT;
+            setupNetwork();
+          }
+
+        }
+
+      }else if (event.type == SDL_KEYUP){
+        keyState = KEY_UP;
       }
     }
 
     SDL_RenderPresent (renderer);
   }
 
+
   dismantleNetwork();
+  if (thread)
+    pthread_join(*thread, NULL);
+
   SDL_DestroyWindow(window);
   SDL_DestroyRenderer(renderer);
-  //Call TTF_CloseFont(fontName) if I later load a font
+  TTF_CloseFont(calibri18);
+  TTF_CloseFont(calibri24);
   TTF_Quit();
   SDL_Quit();
 

@@ -116,6 +116,7 @@ struct clientThread *initialiseThreadStruct(){
   client->thread = NULL;
   client->prev = NULL;
   client->next = NULL;
+  client->validPlayer = false;
   return client;
 }
 
@@ -168,7 +169,31 @@ void *clientServerInteraction (void *clientSocket){ //Consider adding a separate
   if (packet->type != CTOS_SEND_USERNAME)
     validConnection = false;
 
-  strcpy(client->username, packet->args[0]);
+  pthread_mutex_lock(&lock);
+
+  for (struct clientThread *c = client->next; c != NULL; c = c->next){
+    printf("username: %s\n", c->username);
+    if(strcmp(c->username, packet->args[0]) == 0 && c->validPlayer) {
+      sendNoArgsPacket(client->socket, STOC_USERNAME_TAKEN);
+      validConnection = false;
+    }
+  }
+
+  for (struct clientThread *c = client->prev; c != NULL; c = c->prev){
+    printf("username: %s\n", c->username);
+    if(strcmp(c->username, packet->args[0]) == 0 && c->validPlayer) {
+      sendNoArgsPacket(client->socket, STOC_USERNAME_TAKEN);
+      validConnection = false;
+    }
+  }
+
+  if (validConnection) {
+    sendNoArgsPacket(client->socket, STOC_USERNAME_VALID);
+    strcpy(client->username, packet->args[0]);
+    client->validPlayer = true;
+  }
+
+  pthread_mutex_unlock(&lock);
 
   //Now we wait for client to send requests
   //If we get any unexpected messages from the client, we ask them to resend
@@ -362,8 +387,12 @@ void *clientServerInteraction (void *clientSocket){ //Consider adding a separate
             freeMatchStruct(match);
           }
 
+          pthread_mutex_unlock(&lock);
+          break;
+
         case CTOS_END_CONNECTION:
           validConnection = false;
+          client->validPlayer = false;
           break;
 
         default:
@@ -482,6 +511,7 @@ int main(){
           clients->prev->next = clients;
 
         clients->next = initialiseThreadStruct();
+        clients->next->prev = clients;
         clients = clients->next;
       }
     }
