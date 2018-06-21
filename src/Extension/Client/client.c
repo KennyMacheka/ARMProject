@@ -116,6 +116,9 @@ void *sendPings (void *dummy){
 
 void dismantleNetwork(){
 
+  if (network.socket != -1)
+    sendNoArgsPacket(network.socket, CTOS_END_CONNECTION);
+
   if (network.serverInfo) {
     freeaddrinfo(network.serverInfo);
     network.serverInfo = NULL;
@@ -161,6 +164,13 @@ int main(){
   SDL_Rect usernameTextRect;
   struct Texture *usernameTextTexture = setupTexture();
   int inputPos = 0;
+  uintmax_t refreshPlayers = 0;
+
+  char playersOnline[MAX_PLAYERS][MAX_USERNAME_SIZE];
+  SDL_Rect playersRects[MAX_PLAYERS];
+  SDL_Rect playersDisplayRect;
+  struct Texture *playersTextures[MAX_PLAYERS];
+  int numPlayersOnline = 0;
 
   //A structure that will store monitor information such as the width and height of the monitor
   SDL_DisplayMode monitorInformation;
@@ -235,8 +245,13 @@ int main(){
 
   alertBox.x = windowWidth * alertBoxPos_x_scale;
   alertBox.y = 0;
-  alertBox.w = windowWidth* alertBoxWidth_scale;
+  alertBox.w = windowWidth * alertBoxWidth_scale;
   alertBox.h = windowHeight;
+
+  playersDisplayRect.x = 0;
+  playersDisplayRect.y = 0;
+  playersDisplayRect.w = windowWidth * playersBoxWidth_scale;
+  playersDisplayRect.h = windowHeight;
 
   window = SDL_CreateWindow(windowTitle, window_x, window_y, windowWidth, windowHeight, SDL_WINDOW_SHOWN);
   if (!window){
@@ -304,6 +319,11 @@ int main(){
     }
   }
 
+  for (int i = 0; i < MAX_PLAYERS; i++){
+    playersTextures[i] = setupTexture();
+    playersRects[i].x = 0;
+  }
+
 
   userInputRect.x = windowWidth * usernamePos_x_scale;
   userInputRect.y = windowHeight * usernamePos_y_scale;
@@ -318,7 +338,49 @@ int main(){
   SDL_Event event;
 
   setupNetwork();
+  int expectReceiveCount = 0;
   while (!endProgram){
+    if (network.socket != -1){
+
+      if (stage == LOBBY) {
+        uintmax_t current = (uintmax_t) time(NULL);
+
+        if (current - refreshPlayers >= CLIENT_REQUEST_PLAYERS_INTERVAL) {
+          sendNoArgsPacket(network.socket, CTOS_GET_PLAYERS);
+          refreshPlayers = current;
+          expectReceiveCount++;
+        }
+      }
+
+      if (expectReceiveCount > 0){
+        recievePacket(&network.packet, network.socket);
+
+        if(network.packet->type == STOC_LIST_OF_PLAYERS){
+          expectReceiveCount--;
+          numPlayersOnline = network.packet->argc;
+
+          for (int i = 0; i<numPlayersOnline; i++){
+            memset(playersOnline[i],0,MAX_USERNAME_SIZE);
+            strcpy(playersOnline[i], network.packet->args[i]);
+            if (!loadText(playersTextures[i], calibri24, playersOnline[i], white, renderer)){
+              numPlayersOnline = 0; //Not true, but impossible to format, so try again later
+              break;
+            }
+
+            if (i == 0)
+              playersRects[i].y = playersBox_y_padding;
+
+            else
+              playersRects[i].y = playersRects[i-1].y + playersTextures[i-1]->height + playersBox_y_padding;
+
+            playersRects[i].w = playersTextures[i]->width;
+            playersRects[i].h = playersTextures[i]->height;
+          }
+        }
+      }
+
+    }
+
     SDL_SetRenderDrawColor(renderer, 0, 0, 0, 0);
     SDL_RenderClear(renderer);
 
@@ -349,13 +411,21 @@ int main(){
 
     else if (stage == LOBBY){
       renderTexture(boardPic, renderer, &chessBoard, NULL);
+      SDL_SetRenderDrawColor(renderer, 88, 88, 88, 0);
+      SDL_RenderFillRect(renderer, &playersDisplayRect);
+
+      for (int i = 0; i<numPlayersOnline; i++)
+        renderTexture(playersTextures[i], renderer, &playersRects[i], NULL);
+
     }
+
 
     while (SDL_PollEvent(&event)!=0){
       //If connected to server should send message to quit
       if (event.type == SDL_QUIT){
         endProgram = true;
       }else if (event.type == SDL_KEYDOWN && stage == BEGINNING && keyState == KEY_UP) {
+
         keyState = KEY_DOWN;
         SDL_Keycode key = event.key.keysym.sym;
         if (key == SDLK_BACKSPACE && inputPos>0){

@@ -20,6 +20,10 @@ const double chessBoardPos_x_scale = 0.6;
 const double chessBoardPos_y_scale = 0.1;
 const double alertBoxWidth_scale = 0.25;
 const double alertBoxPos_x_scale = 0.75;
+const double playersBoxWidth_scale = 0.25;
+const int playersBoxSpacing = 20;
+const int playersBox_y_padding = 10;
+
 
 const char whitePiecesPaths[DISTINCT_PIECES][PIECE_PATH_LEN+1] = {[PAWN] = "Images/wp.png",
     [KNIGHT] = "Images/wn.png", [BISHOP] = "Images/wb.png",

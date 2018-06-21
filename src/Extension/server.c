@@ -172,7 +172,6 @@ void *clientServerInteraction (void *clientSocket){ //Consider adding a separate
   pthread_mutex_lock(&lock);
 
   for (struct clientThread *c = client->next; c != NULL; c = c->next){
-    printf("username: %s\n", c->username);
     if(strcmp(c->username, packet->args[0]) == 0 && c->validPlayer) {
       sendNoArgsPacket(client->socket, STOC_USERNAME_TAKEN);
       validConnection = false;
@@ -180,7 +179,6 @@ void *clientServerInteraction (void *clientSocket){ //Consider adding a separate
   }
 
   for (struct clientThread *c = client->prev; c != NULL; c = c->prev){
-    printf("username: %s\n", c->username);
     if(strcmp(c->username, packet->args[0]) == 0 && c->validPlayer) {
       sendNoArgsPacket(client->socket, STOC_USERNAME_TAKEN);
       validConnection = false;

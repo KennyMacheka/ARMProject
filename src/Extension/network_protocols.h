@@ -30,6 +30,7 @@
 #define NORMAL_MOVE_ARGC 7 //gameId, start_row, start_col, end_row, end_col, is_EnPassant, pawnPromotionPiece
 #define CASTLING_MOVE_ARGC 9 //Same as normal move but an extra start and end positions, and no en passant or pawn promotion check (implitictly no)
 #define CLIENT_PING_INTERVAL 3 //Client sends a "I'm still online" packet every 3 seconds
+#define CLIENT_REQUEST_PLAYERS_INTERVAL 5
 
 #define STOC_CONNECTION_ESTABLISHED 1 //No arguments
 #define CTOS_SEND_USERNAME 2

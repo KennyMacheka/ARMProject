@@ -23,7 +23,11 @@ extern const int usernameWidth;
 extern const int usernameHeight;
 extern const double alertBoxWidth_scale;
 extern const double alertBoxPos_x_scale;
-const int userInputPaddingx;
+extern const int userInputPaddingx;
+extern const double playersBoxWidth_scale;
+extern const int playersBoxSpacing;
+extern const int playersBox_y_padding;
+
 
 extern const char whitePiecesPaths[DISTINCT_PIECES][PIECE_PATH_LEN+1];
 extern const char blackPiecesPaths[DISTINCT_PIECES][PIECE_PATH_LEN+1];
