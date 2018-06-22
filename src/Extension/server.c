@@ -464,7 +464,7 @@ int main(){
     return EXIT_FAILURE;
   }
 
-  if (getaddrinfo(HOST_NAME, PORT_STR, &hints, &serverInfo) != 0){
+  if (getaddrinfo("raspberrypi", PORT_STR, &hints, &serverInfo) != 0){
     fprintf(stderr, "getaddrinfo error: %s\n", gai_strerror(status));
     return EXIT_FAILURE;
   }
