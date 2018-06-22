@@ -107,5 +107,15 @@ struct Move setupMovesStructPromotion (struct Game *game, int startRow, int star
                                        enum PIECES promotionPiece);
 bool requestMove (struct Game *game, struct Move *move);
 
+void kingMoves (struct Game *game, struct Piece *king, struct PossibleMoves *moves);
+void pawnMoves (struct Game *game, struct Piece *pawn, struct PossibleMoves *moves);
+void queenMoves (struct Game *game, struct Piece *queen, struct PossibleMoves *moves);
+void rookMoves (struct Game *game, struct Piece *rook, struct PossibleMoves *moves);
+void knightMoves (struct Game *game, struct Piece *knight, struct PossibleMoves *moves);
+void bishopMoves(struct Game *game, struct Piece *bishop, struct PossibleMoves *moves);
+void filterPossibleMoves(struct Game *game, struct PossibleMoves *moves);
+
+struct PossibleMoves *setupMovesStruct();
+
 
 #endif //ARM11_35_CHESS_ENGINE_H

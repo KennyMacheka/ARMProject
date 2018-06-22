@@ -15,7 +15,18 @@
 #define USERNAME_PROMPT 0
 #define USER_NAME_TAKEN 1
 #define CANNOT_CONNECT 2
-#define TOTAL_OUTPUT_TEXTS 3
+#define SENDING_GAME_REQUEST 3
+#define MATCH_NOT_POSSIBLE 4
+#define TOTAL_OUTPUT_TEXTS 5
+
+
+#define WAITING_FOR_OPPONENT 0
+#define ACCEPT_REQUEST 1
+#define REJECT_REQUEST 2
+#define YOUR_MOVE 3
+#define OPPONENT_MOVE 4
+#define TOTAL_GAME_OUTPUT_TEXTS 5
+
 #define MAX_OUTPUT_TEXT_LEN 50
 
 
@@ -23,6 +34,40 @@
 void setupNetwork();
 void dismantleNetwork();
 void *sendPings (void *dummy);
+struct matchesStruct *setupMatchStruct();
+void freeMatchStruct (struct matchesStruct *match);
+struct matchesStruct *getMatchByPos(int pos);
+struct matchesStruct *getMatchById(int id);
+
+
+static int numMatches = 0;
+static int currentMatch = 0;  //Displaying output of a particular match
+static struct matchesStruct *newestMatch = NULL;
+static struct matchesStruct *head = NULL;
+//Similar to the one in server.c, however different enough that they can be defined separately
+struct matchesStruct{
+  int gameId;
+  char opponentName[MAX_USERNAME_SIZE];
+  char youAndOpponentMsg[MAX_OUTPUT_TEXT_LEN];
+  enum COLOUR colour;
+  struct Game* game;
+  struct matchesStruct *next;
+  struct matchesStruct *prev;
+  int outputType;
+  struct Texture *outputOpponentName;
+  struct Texture *gameOutput;
+  struct Texture *gameOutput2;
+
+  char *outputText;
+  char *outputText2;
+
+  SDL_Rect outputTextRect;
+  SDL_Rect outputTextRect2;
+  SDL_Rect outputOpponentNameRect;
+
+  bool gameStarted;
+
+};
 
 struct serverDetails{
   int status;
@@ -36,6 +81,98 @@ struct serverDetails{
   int socket;
 }network;
 
+
+struct matchesStruct *setupMatchStruct(){
+  struct matchesStruct *match = (struct matchesStruct *) malloc(sizeof(struct matchesStruct));
+  match->game = NULL;
+  match->next = NULL;
+  match->prev = NULL;
+  match->gameOutput = NULL;
+  match->gameOutput2 = NULL;
+  match->outputText = NULL;
+  match->outputText2 = NULL;
+  match->outputOpponentName = NULL;
+  match->gameId = -1;
+  match->outputType = -1;
+  match->gameStarted = false;
+
+  strcat(match->youAndOpponentMsg, "You vs. ");
+
+  return match;
+}
+
+void initialiseMatchStruct(int gameId, char *opponentName, int outputType){
+  struct matchesStruct *newMatch = setupMatchStruct();
+  newMatch->gameId = gameId;
+  strcpy(newMatch->opponentName, opponentName);
+  newMatch->next = NULL;
+  newMatch->prev = newestMatch;
+  newMatch->gameOutput = setupTexture();
+  newMatch->gameOutput2 = setupTexture();
+  newMatch->outputOpponentName = setupTexture();
+  newMatch->outputType = outputType;
+  strcat(newMatch->youAndOpponentMsg, opponentName);
+
+  if (newestMatch)
+    newestMatch->next = newMatch;
+
+  else {
+    head->next = newMatch;
+    currentMatch = 1;
+  }
+
+  newestMatch = newMatch;
+  numMatches++;
+}
+
+void freeMatchStruct (struct matchesStruct *match){
+  match->gameId = -1;
+
+  if (newestMatch == match) {
+    newestMatch = match->prev;
+    if (!newestMatch)
+      head->next = NULL;
+  }
+
+  if (match->game)
+    free(match->game);
+
+  if (match->next)
+    match->next->prev = match->prev;
+
+  if (match->prev)
+    match->prev->next = match->next;
+
+  if (match->gameOutput)
+    freeTextureStructure(match->gameOutput);
+
+  numMatches--;
+  free(match);
+}
+
+struct matchesStruct *getMatchByPos(int pos){
+
+  if (pos == 0)
+    return NULL;
+
+  int i = 0;
+  struct matchesStruct *match = head;
+  for (; i<pos && match; i++, match = match->next){
+  }
+
+  return match;
+}
+
+struct matchesStruct *getMatchById(int id){
+
+  for (struct matchesStruct *match = head->next; match != NULL; match = match->next){
+    if(match->gameId == id)
+      return match;
+  }
+
+  return NULL;
+}
+
 void setupNetwork(){
   network.serverInfo = NULL;
   network.server = NULL;
@@ -48,12 +185,11 @@ void setupNetwork(){
   //Will fill in server's IP
   network.hints.ai_flags = AI_PASSIVE;
   network.socket = -1;
-  network.status = getaddrinfo("kenny-Aspire-ES1-521", PORT_STR, &network.hints, &network.serverInfo);
+  network.status = getaddrinfo(HOST_NAME, PORT_STR, &network.hints, &network.serverInfo);
 
   if (network.status != 0){
     fprintf(stderr, "getaddrinfo error: %s\n", gai_strerror(network.status));
     dismantleNetwork();
-    exit(1);
   }
 
   printf("Recieved address info.\n");
@@ -139,6 +275,7 @@ void dismantleNetwork(){
 
 int main(){
 
+  head = setupMatchStruct();
   pthread_t *thread = NULL;
 
   enum CLIENT_STAGE{
@@ -151,12 +288,24 @@ int main(){
     KEY_DOWN,
     KEY_UP,
   }keyState;
+
+  enum MOUSE_STATE{
+    MOUSE_DOWN,
+    MOUSE_UP
+  }mouseState;
+
+  mouseState = MOUSE_DOWN;
   keyState = KEY_UP;
+  int mousePlayerPos;
+  bool tryingToChallenge = false;
 
   enum CLIENT_STAGE stage = BEGINNING;
   char outputText[TOTAL_OUTPUT_TEXTS][MAX_OUTPUT_TEXT_LEN+1] = {{"Enter a username (1-9 characters)"},
                                                                 {"Username is taken"},
-                                                                {"Cannot connect to network. Try again."}};
+                                                                {"Cannot connect to server. Try again."},
+                                                                {"Sending challenge"},
+                                                                {"Match no longer possible."}};
+
   int outputTextPos = USERNAME_PROMPT;
   SDL_Rect outputTextRects[TOTAL_OUTPUT_TEXTS];
   struct Texture *outputTextTextures[TOTAL_OUTPUT_TEXTS];
@@ -171,6 +320,12 @@ int main(){
   SDL_Rect playersDisplayRect;
   struct Texture *playersTextures[MAX_PLAYERS];
   int numPlayersOnline = 0;
+
+  char gameOutput[TOTAL_GAME_OUTPUT_TEXTS][MAX_OUTPUT_TEXT_LEN+1] = {{"Waiting for opponent..."},
+                                                                     {"Accept Request"},
+                                                                     {"Reject Request"},
+                                                                     {"Your Move"},
+                                                                     {"Opponent's move"}};
 
   //A structure that will store monitor information such as the width and height of the monitor
   SDL_DisplayMode monitorInformation;
@@ -197,7 +352,7 @@ int main(){
   bool inputLoaded = false;
 
 
-  const char *boardPath = "Images/board.png";
+  const char *boardPath = "Images/board_brown.png";
   struct Texture *whitePiecesPics[DISTINCT_PIECES];
   struct Texture *blackPiecesPics[DISTINCT_PIECES];
   SDL_Rect chessBoard;
@@ -205,6 +360,14 @@ int main(){
 
   SDL_Rect alertBox;
   SDL_Rect userInputRect;
+
+  //To navigate different games
+  struct Texture *leftArrow = setupTexture();
+  struct Texture *rightArrow = setupTexture();
+  SDL_Rect leftArrowRect;
+  SDL_Rect rightArrowRect;
+  const char *leftArrowPath = "Images/left_arrow.png";
+  const char *rightArrowPath = "Images/right_arrow.png";
 
   if (SDL_Init(SDL_INIT_VIDEO|SDL_INIT_EVENTS) < 0){
     fprintf(stderr, "Failed to initialise SDL.\n");
@@ -229,6 +392,7 @@ int main(){
 
   window_x = windowWidth * windowPos_x_scale;
   window_y = windowHeight * windowPos_y_scale;
+  SDL_Rect windowRect = {0, 0, windowWidth, windowHeight};
 
   if (windowWidth > windowHeight){
     chessBoard.w =  windowHeight*chessBoardScale;
@@ -290,13 +454,24 @@ int main(){
     return EXIT_FAILURE;
   }
 
+  if(!loadImage(leftArrow, renderer, leftArrowPath, false, 0, 0, 0)){
+    fprintf(stderr, "Failed to load left arrow.\n");
+    return EXIT_FAILURE;
+  }
+
+  if(!loadImage(rightArrow, renderer, rightArrowPath, false, 0, 0, 0)){
+    fprintf(stderr, "Failed to load right arrow.\n");
+    return EXIT_FAILURE;
+  }
+
 
   SDL_Color white = {255,255,255,255};
+  SDL_Color black = {0,0,0,0};
 
 
   for (int i = 0; i<TOTAL_OUTPUT_TEXTS; i++) {
     outputTextTextures[i] = setupTexture();
-    if (!loadText(outputTextTextures[i], calibri24, outputText[i], white, renderer)) {
+    if (!loadText(outputTextTextures[i], calibri18, outputText[i], white, renderer)) {
       fprintf(stderr, "Failed to load text.\n");
       return EXIT_FAILURE;
     }
@@ -333,12 +508,29 @@ int main(){
   usernameTextRect.x = userInputRect.x+userInputPaddingx;
   usernameTextRect.y = userInputRect.y;
 
+  rightArrowRect.x = chessBoard.x+chessBoard.w - arrowWidth;
+  rightArrowRect.y = windowHeight- arrowHeight - arrowPadY;
+  rightArrowRect.w = arrowWidth;
+  rightArrowRect.h = arrowHeight;
+
+  leftArrowRect.x = rightArrowRect.x - arrowWidth - leftArrowPadX;
+  leftArrowRect.y = rightArrowRect.y;
+  leftArrowRect.w = arrowWidth;
+  leftArrowRect.h = arrowHeight;
+
 
   bool endProgram = false;
   SDL_Event event;
+  bool piecePressed = false;
 
   setupNetwork();
   int expectReceiveCount = 0;
+  SDL_Rect clickedPieceRect;
+  struct Piece *clickedPieceStruct;
+  bool clickedPiece = false;
+
+  int pieceSize = chessBoard.w/BOARD_SIZE;
+
   while (!endProgram){
     if (network.socket != -1){
 
@@ -354,8 +546,7 @@ int main(){
 
       if (expectReceiveCount > 0){
         recievePacket(&network.packet, network.socket);
-
-        if(network.packet->type == STOC_LIST_OF_PLAYERS){
+        if (network.packet->type == STOC_LIST_OF_PLAYERS){
           expectReceiveCount--;
           numPlayersOnline = network.packet->argc;
 
@@ -376,9 +567,75 @@ int main(){
             playersRects[i].w = playersTextures[i]->width;
             playersRects[i].h = playersTextures[i]->height;
           }
+
+          tryingToChallenge = false;
+        } else if (network.packet->type == STOC_FORWARDING_CHALLENGE_REQUEST){
+          expectReceiveCount--;
+          int gameId = *((int *) (&network.packet->args[0][0]));
+          char *opponentName = network.packet->args[1];
+
+          initialiseMatchStruct(gameId, opponentName, WAITING_FOR_OPPONENT);
+
+        } else if (network.packet->type == STOC_CHALLENGE_REQUEST){
+          int gameId = *((int *) (&network.packet->args[0][0]));
+          char *opponentName = network.packet->args[1];
+          initialiseMatchStruct(gameId, opponentName, ACCEPT_REQUEST);
+        }else if (network.packet->type == STOC_CANNOT_CHALLENGE_PLAYER || network.packet->type == STOC_OPPONENT_LEFT){
+          if (network.packet->type == STOC_CANNOT_CHALLENGE_PLAYER)
+            expectReceiveCount--;
+
+          int gameId = *((int *) (&network.packet->args[0][0]));
+          struct matchesStruct *match = getMatchById(gameId);
+          if (match)
+            freeMatchStruct(match);
+          if (currentMatch > numMatches)
+            currentMatch = numMatches;
+          //If I continue to develop, add code here so green box says player went offline
+        }else if (network.packet->type == STOC_GAME_STARTED){
+          expectReceiveCount--;
+          int gameId = *((int *) (&network.packet->args[0][0]));
+          enum COLOUR colour = *((int *) (&network.packet->args[1][0]));
+          struct matchesStruct *match = getMatchById(gameId);
+
+          if(match){
+            match->game = setupGame();
+            match->colour = colour;
+            if (colour == WHITE){
+              match->outputType = YOUR_MOVE;
+            }
+            //Player will move
+            else {
+              match->outputType = OPPONENT_MOVE;
+              expectReceiveCount++;
+            }
+          }
+        }else if (network.packet->type == STOC_OPPONENT_MOVE){
+          expectReceiveCount--;
+          int gameId = *((int *) (&network.packet->args[0][0]));
+          struct matchesStruct *match = getMatchById(gameId);
+          if (match){
+            struct Move move;
+            int startRow = * ((int *) &network.packet->args[1][0]);
+            int startCol = * ((int *) &network.packet->args[2][0]);
+            int endRow = * ((int *) &network.packet->args[3][0]);
+            int endCol = * ((int *) &network.packet->args[4][0]);
+            if (network.packet->argc == CASTLING_MOVE_ARGC){
+              int startRow2 = * ((int *) &network.packet->args[5][0]);
+              int startCol2 = * ((int *) &network.packet->args[6][0]);
+              int endRow2 = * ((int *) &network.packet->args[7][0]);
+              int endCol2 = * ((int *) &network.packet->args[8][0]);
+              move = setupMoveStructCastling(match->game, startRow, startCol, endRow, endCol,
+                                             startRow2, startCol2, endRow2, endCol2);
+            }else{
+              bool isEnpassant = (bool) *((int *) &network.packet->args[5][0]);
+              enum PIECES promotionPiece = * ((int *) &network.packet->args[6][0]);
+              move = setupMovesStructPromotion(match->game, startRow, startCol, endRow, endCol, promotionPiece);
+            }
+
+            match->outputType = YOUR_MOVE;
+          }
         }
       }
-
     }
 
     SDL_SetRenderDrawColor(renderer, 0, 0, 0, 0);
@@ -413,10 +670,114 @@ int main(){
       renderTexture(boardPic, renderer, &chessBoard, NULL);
       SDL_SetRenderDrawColor(renderer, 88, 88, 88, 0);
       SDL_RenderFillRect(renderer, &playersDisplayRect);
+      renderTexture(rightArrow, renderer, &rightArrowRect, NULL);
+      renderTexture(leftArrow, renderer, &leftArrowRect, NULL);
 
       for (int i = 0; i<numPlayersOnline; i++)
         renderTexture(playersTextures[i], renderer, &playersRects[i], NULL);
 
+      if(head->next && currentMatch > 0){
+        struct matchesStruct *match = getMatchByPos(currentMatch);
+        if (match){
+          if (match->outputOpponentName->width == 0){
+            if (loadText(match->outputOpponentName, calibri24, match->youAndOpponentMsg, white, renderer)){
+              match->outputOpponentNameRect.x = chessBoard.x + outputOpponentNamePaddingx;
+              match->outputOpponentNameRect.y = outputOpponenty;
+              match->outputOpponentNameRect.w = match->outputOpponentName->width;
+              match->outputOpponentNameRect.h = match->outputOpponentName->height;
+            }
+          }
+
+          if (match->outputOpponentName->width != 0 && match->outputOpponentName->height != 0){
+            renderTexture(match->outputOpponentName, renderer, &match->outputOpponentNameRect, NULL);
+          }
+
+          if (match->gameStarted){ //output board
+
+          }
+
+          switch(match->outputType){
+            case WAITING_FOR_OPPONENT:
+              if (loadText(match->gameOutput, calibri24, gameOutput[WAITING_FOR_OPPONENT], white, renderer)){
+                match->outputTextRect.x = (chessBoard.x+chessBoard.w)*0.5;
+                match->outputTextRect.y = windowHeight - match->gameOutput->height - 20;
+                match->outputTextRect.w = match->gameOutput->width;
+                match->outputTextRect.h = match->gameOutput->height;
+                renderTexture(match->gameOutput, renderer, &match->outputTextRect, NULL);
+              }
+              break;
+
+            case ACCEPT_REQUEST:
+              if (loadText(match->gameOutput, calibri24, gameOutput[ACCEPT_REQUEST], white, renderer) &&
+                  loadText(match->gameOutput2, calibri24, gameOutput[REJECT_REQUEST], white, renderer)){
+
+                match->outputTextRect.x = chessBoard.x;
+                match->outputTextRect.y = windowHeight - match->gameOutput->height - 20;
+                match->outputTextRect.w = match->gameOutput->width;
+                match->outputTextRect.h = match->gameOutput->height;
+
+                match->outputTextRect2.x = match->outputTextRect.x + match->outputTextRect.w + 50;
+                match->outputTextRect2.y = windowHeight - match->gameOutput->height - 20;
+                match->outputTextRect2.w = match->gameOutput2->width;
+                match->outputTextRect2.h = match->gameOutput2->height;
+
+                renderTexture(match->gameOutput, renderer, &match->outputTextRect, NULL);
+                renderTexture(match->gameOutput2, renderer, &match->outputTextRect2, NULL);
+              }
+              break;
+
+            case YOUR_MOVE: case OPPONENT_MOVE: //Show pieces on board
+              SDL_RenderSetViewport(renderer, &chessBoard);
+              //If colour is black, we can load up pieces in same order as board
+              int sizePiece = chessBoard.w/BOARD_SIZE;
+              int end_x = chessBoard.w, end_y = chessBoard.h;
+              int start, end, inc;
+
+              if (match->colour == BLACK){
+                start = 0;
+                end = BOARD_SIZE;
+                inc = 1;
+              }else{
+                start = 7;
+                end = -1;
+                inc = -1;
+              }
+
+              for (int row = start, y = 0; row != end; row+=inc, y += sizePiece){
+                for (int col = 0, x = 0; col<BOARD_SIZE; col++, x += sizePiece){
+                  struct Piece piece = match->game->board[row][col];
+                  if (piece.piece != BLANK){
+                    struct Texture *pieceTexture;
+                    if (piece.colour == WHITE)
+                      pieceTexture = whitePiecesPics[piece.piece];
+                    else
+                      pieceTexture = blackPiecesPics[piece.piece];
+
+                    SDL_Rect pieceRect;
+                    pieceRect.x = x;
+                    pieceRect.y = y;
+                    pieceRect.w = sizePiece;
+                    pieceRect.h = sizePiece;
+
+                    renderTexture(pieceTexture, renderer, &pieceRect, NULL);
+                  }
+                }
+              }
+              SDL_RenderSetViewport(renderer, &windowRect);
+
+              if (loadText(match->gameOutput, calibri24, gameOutput[match->outputType], white, renderer)){
+                match->outputTextRect.x = chessBoard.x;
+                match->outputTextRect.y = windowHeight - match->gameOutput->height - 20;
+                match->outputTextRect.w = match->gameOutput->width;
+                match->outputTextRect.h = match->gameOutput->height;
+                renderTexture(match->gameOutput, renderer, &match->outputTextRect, NULL);
+              }
+
+              break;
+
+          }
+        }
+      }
     }
 
 
@@ -446,13 +807,12 @@ int main(){
               outputTextPos = CANNOT_CONNECT; //Will try and send again
               continue;
             }
-            printf("recieving next packet.\n");
+
             recievePacket(&network.packet, network.socket);
-            printf("recieved packet. %d\n", network.packet->type);
+
             if (network.packet->type == STOC_USERNAME_TAKEN){
               outputTextPos = USER_NAME_TAKEN;
             }else if (network.packet->type == STOC_USERNAME_VALID){
-              printf("username is valid.");
               stage = LOBBY;
               thread = (pthread_t *) malloc(sizeof(pthread_t));
               pthread_create(thread, NULL, sendPings, NULL);
@@ -466,6 +826,177 @@ int main(){
 
       }else if (event.type == SDL_KEYUP){
         keyState = KEY_UP;
+      }else if(event.type == SDL_MOUSEBUTTONDOWN){
+        int mouseX, mouseY;
+        SDL_GetMouseState(&mouseX, &mouseY);
+
+        for (int i = 0; i<numPlayersOnline; i++){
+          if (mouse_inside(mouseX,mouseY, playersRects[i])){ //User is trying to challenge a player
+            mouseState = MOUSE_DOWN;
+            mousePlayerPos = i;
+            tryingToChallenge = true;
+            break;
+          }
+        }
+
+        if (mouse_inside(mouseX, mouseY, leftArrowRect) && currentMatch >= 2)
+          currentMatch--;
+
+        if (mouse_inside(mouseX, mouseY, rightArrowRect) && (currentMatch+1) <= numMatches)
+          currentMatch++;
+
+        if (stage == LOBBY && currentMatch != 0){
+          struct matchesStruct *match = getMatchByPos(currentMatch);
+          if (match) {
+            if (match->outputType == ACCEPT_REQUEST) {
+              if (mouse_inside(mouseX, mouseY, match->outputTextRect)) { //Accept request
+                sendOneArgIntPacket(network.socket, CTOS_ACCEPT_REQUEST, match->gameId);
+                expectReceiveCount++;
+              } else if (mouse_inside(mouseX, mouseY, match->outputTextRect2)) { //Reject
+                sendOneArgIntPacket(network.socket, CTOS_REJECT_MATCH_REQUEST, match->gameId);
+                freeMatchStruct(match);
+                if (currentMatch > numMatches)
+                  currentMatch = numMatches;
+              }
+            }
+
+            if (match->outputType == YOUR_MOVE && clickedPiece == false){
+              int mouse_x, mouse_y;
+              SDL_GetMouseState(&mouse_x, &mouse_y);
+              SDL_RenderSetViewport(renderer, &chessBoard);
+              mouse_x -= chessBoard.x;
+              mouse_y -= chessBoard.y;
+              //Need to loop through all pieces on board and check if they have been clicked on
+              struct Piece *pieces;
+              int numPieces;
+              if (match->colour == WHITE){
+                pieces = match->game->whitePieces;
+                numPieces = match->game->numWhitePieces;
+              }else{
+                pieces = match->game->blackPieces;
+                numPieces = match->game->numBlackPieces;
+              }
+
+
+              for (int i = 0; i<numPieces; i++){
+                int screenX, screenY;
+                screenX = pieces[i].col*pieceSize;
+                if (match->colour == BLACK)
+                  screenY = pieces[i].row*pieceSize;
+                else
+                  screenY = (BOARD_SIZE-pieces[i].row-1)*pieceSize;
+
+                SDL_Rect pieceRect = {screenX, screenY, pieceSize, pieceSize};
+                if (mouse_inside(mouse_x, mouse_y, pieceRect)) {
+                  clickedPieceRect = pieceRect;
+                  clickedPieceStruct = &pieces[i];
+                  clickedPiece = true;
+                  break;
+                }
+              }
+              SDL_RenderSetViewport(renderer, &windowRect);
+            }else if (match->outputType == YOUR_MOVE && clickedPiece){
+              clickedPiece = false;
+              int mouse_x, mouse_y;
+              SDL_GetMouseState(&mouse_x, &mouse_y);
+              SDL_RenderSetViewport(renderer, &chessBoard);
+              mouse_x -= chessBoard.x;
+              mouse_y -= chessBoard.y;
+              int start, end,inc;
+
+              if (match->colour == BLACK){
+                start = 0;
+                end = BOARD_SIZE;
+                inc = 1;
+              }else{
+                start = 7;
+                end = -1;
+                inc = -1;
+              }
+
+              for (int row = start, y = 0; row != end; row+=inc, y += pieceSize){
+                for (int col = 0, x = 0; col<BOARD_SIZE; col++, x += pieceSize){
+                  struct Piece piece = match->game->board[row][col];
+                  int screenX, screenY;
+                  screenX = piece.col*pieceSize;
+                  if (match->colour == BLACK)
+                    screenY = piece.row*pieceSize;
+                  else
+                    screenY = (BOARD_SIZE-piece.row-1)*pieceSize;
+
+                  SDL_Rect pieceRect;
+                  pieceRect.x = screenX;
+                  pieceRect.y = screenY;
+                  pieceRect.w = pieceSize;
+                  pieceRect.h = pieceSize;
+
+                  if (mouse_inside(mouse_x, mouse_y, pieceRect)){
+                    struct PossibleMoves *moves = setupMovesStruct();
+                    switch (clickedPieceStruct->piece){
+                      case PAWN:
+                        pawnMoves(match->game, clickedPieceStruct, moves);
+                        break;
+
+                      case BISHOP:
+                        bishopMoves(match->game, clickedPieceStruct, moves);
+                        break;
+                      case KNIGHT:
+                        knightMoves(match->game, clickedPieceStruct, moves);
+                        break;
+                      case ROOK:
+                        rookMoves(match->game, clickedPieceStruct, moves);
+                        break;
+
+                      case QUEEN:
+                        queenMoves(match->game, clickedPieceStruct, moves);
+                        break;
+
+                      case KING:
+                        kingMoves(match->game, clickedPieceStruct, moves);
+                        break;
+                      default:
+                        break;
+                    }
+                    filterPossibleMoves(match->game, moves);
+
+                    for (int m= 0; m < moves->numMoves; m++){
+                      if (moves->moves[m].endRow == row && moves->moves[m].endCol == col){
+                        requestMove(match->game, &moves->moves[m]);
+                        network.packet->type = CTOS_MOVE;
+                        if (moves->moves[m].isCastling){
+                          sendCastlingMove(network.socket, CTOS_MOVE, match->gameId, moves->moves[m]);
+                        }else{
+                          sendNormalMove(network.socket, CTOS_MOVE, match->gameId, moves->moves[m]);
+                        }
+                        match->outputType = OPPONENT_MOVE;
+                        expectReceiveCount++;
+                        break;
+                      }
+                    }
+                  }
+
+                }
+              }
+
+              SDL_RenderSetViewport(renderer, &windowRect);
+            }
+          }
+        }
+
+      }else if (event.type == SDL_MOUSEBUTTONUP && mouseState == MOUSE_DOWN){
+        mouseState = MOUSE_UP;
+        if (tryingToChallenge){ //need to send challenge request
+          int mouseX, mouseY;
+          SDL_GetMouseState(&mouseX, &mouseY);
+          if (mouse_inside(mouseX, mouseY, playersRects[mousePlayerPos])) {
+            network.packet->type = CTOS_CHALLENGE_PLAYER;
+            strcpy(network.packet->args[0], playersOnline[mousePlayerPos]);
+            network.packet->argc = 1;
+            sendPacket(network.packet, network.socket);
+            expectReceiveCount++;
+          }
+          tryingToChallenge = false;
+        }
       }
     }
 
@@ -477,6 +1008,7 @@ int main(){
   if (thread)
     pthread_join(*thread, NULL);
 
+  freeMatchStruct(head);
   SDL_DestroyWindow(window);
   SDL_DestroyRenderer(renderer);
   TTF_CloseFont(calibri18);

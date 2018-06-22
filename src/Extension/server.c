@@ -72,6 +72,9 @@ void freeMatchStruct(struct matchesStruct *match){
   if (!match)
     return;
 
+  if (newestMatch == match)
+    newestMatch = match->prev;
+
   if (match->prev)
     match->prev->next = match->next;
 
@@ -201,7 +204,6 @@ void *clientServerInteraction (void *clientSocket){ //Consider adding a separate
   int id;
   struct matchesStruct *match;
   while(validConnection){
-
     if (recievePacket(&packet, client->socket) == 0){
       client->lastPacket = (uintmax_t) time(NULL); //packet has been sent,
 
@@ -219,7 +221,7 @@ void *clientServerInteraction (void *clientSocket){ //Consider adding a separate
         case CTOS_CHALLENGE_PLAYER:
           //Check player is still online
           pthread_mutex_lock(&lock);
-          struct clientThread *opponent = getPlayer(client, packet->args[1]);
+          struct clientThread *opponent = getPlayer(client, packet->args[0]);
           if (!opponent){
             sendNoArgsPacket(client->socket, STOC_CANNOT_CHALLENGE_PLAYER);
           }else{
@@ -234,7 +236,8 @@ void *clientServerInteraction (void *clientSocket){ //Consider adding a separate
             newestMatch->game.player2 = opponent;
             newestMatch->gameId = gameId;
             newestMatch->game.matchStarted = false;
-            sendOneArgIntPacket(opponent->socket, STOC_CHALLENGE_REQUEST, gameId);
+            sendIntAndStrPacket(client->socket, STOC_FORWARDING_CHALLENGE_REQUEST, gameId, opponent->username);
+            sendIntAndStrPacket(opponent->socket, STOC_CHALLENGE_REQUEST, gameId, client->username);
             gameId++;
           }
           pthread_mutex_unlock(&lock);
@@ -252,14 +255,14 @@ void *clientServerInteraction (void *clientSocket){ //Consider adding a separate
               match->game.player2_colour = BLACK;
               match->game.turn = PLAYER1;
               //Player 1 is this current socket
-              sendOneArgIntPacket(match->game.player1->socket, STOC_GAME_STARTED, WHITE);
-              sendOneArgIntPacket(match->game.player2->socket, STOC_GAME_STARTED, BLACK);
+              sendTwoArgIntPacket(match->game.player1->socket, STOC_GAME_STARTED, id, WHITE);
+              sendTwoArgIntPacket(match->game.player2->socket, STOC_GAME_STARTED, id, BLACK);
             }else{
               match->game.player2_colour = WHITE;
               match->game.player1_colour = BLACK;
               match->game.turn = PLAYER2;
-              sendOneArgIntPacket(match->game.player1->socket, STOC_GAME_STARTED, BLACK);
-              sendOneArgIntPacket(match->game.player2->socket, STOC_GAME_STARTED, WHITE);
+              sendTwoArgIntPacket(match->game.player1->socket, STOC_GAME_STARTED, id, BLACK);
+              sendTwoArgIntPacket(match->game.player2->socket, STOC_GAME_STARTED, id, WHITE);
             }
           }
           pthread_mutex_unlock(&lock);
@@ -379,6 +382,7 @@ void *clientServerInteraction (void *clientSocket){ //Consider adding a separate
 
         case CTOS_REJECT_MATCH_REQUEST: //Other play doesn't want to play
           pthread_mutex_lock(&lock);
+          id =  * ((int *) &packet->args[0][0]);
           match = getMatch(id);
           if (match){
             sendMatchMessage(client, match, STOC_CANNOT_CHALLENGE_PLAYER);
@@ -410,11 +414,15 @@ void *clientServerInteraction (void *clientSocket){ //Consider adding a separate
   for (match = newestMatch; match != NULL;){
     struct matchesStruct *prev = match->prev;
     if (match->game.player1 == client || match->game.player2 == client) {
-      if (match->game.player1 == client)
-        sendOneArgIntPacket(match->game.player2->socket, STOC_OPPONENT_LEFT, match->gameId);
+      if (match->game.player1 == client) {
+        if (match->game.player2->validPlayer)
+          sendOneArgIntPacket(match->game.player2->socket, STOC_OPPONENT_LEFT, match->gameId);
+      }
 
-      else
-        sendOneArgIntPacket(match->game.player1->socket, STOC_OPPONENT_LEFT, match->gameId);
+      else {
+        if (match->game.player1->validPlayer)
+          sendOneArgIntPacket(match->game.player1->socket, STOC_OPPONENT_LEFT, match->gameId);
+      }
 
       freeMatchStruct(match);
     }
@@ -427,6 +435,7 @@ void *clientServerInteraction (void *clientSocket){ //Consider adding a separate
   pthread_mutex_unlock(&lock);
   if (packet)
     free(packet);
+  printf("Disconnected client.\n");
   return NULL;
 }
 

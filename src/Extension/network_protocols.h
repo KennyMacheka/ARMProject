@@ -18,9 +18,9 @@
 #include "Chess_Engine/chess_engine.h"
 
 
-#define PORT_STR "23556"
+#define PORT_STR "23555"
 #define BACKLOG 20
-#define HOST_NAME "kenny-Aspire-ES1-521"
+#define HOST_NAME "192.168.1.254"
 #define MAX_PLAYERS 20
 #define MAX_USERNAME_SIZE 15
 #define PACKET_SIZE 705
@@ -30,7 +30,7 @@
 #define NORMAL_MOVE_ARGC 7 //gameId, start_row, start_col, end_row, end_col, is_EnPassant, pawnPromotionPiece
 #define CASTLING_MOVE_ARGC 9 //Same as normal move but an extra start and end positions, and no en passant or pawn promotion check (implitictly no)
 #define CLIENT_PING_INTERVAL 3 //Client sends a "I'm still online" packet every 3 seconds
-#define CLIENT_REQUEST_PLAYERS_INTERVAL 5
+#define CLIENT_REQUEST_PLAYERS_INTERVAL 2
 
 #define STOC_CONNECTION_ESTABLISHED 1 //No arguments
 #define CTOS_SEND_USERNAME 2
@@ -44,7 +44,7 @@
 #define STOC_CONNECTION_ENDED 11
 //This'll end connection, client will be aware
 #define STOC_TOO_MANY_PLAYERS 12
-#define STOC_OPPONENT_LEFT 13
+#define STOC_OPPONENT_LEFT 13 //gameId
 //A ping sent to the server every few seconds to inform it client is still online
 #define CTOS_STILL_ONLINE 14
 #define CTOS_OFFER_DRAW 15 //gameId
@@ -52,10 +52,10 @@
 #define CTOS_CLAIM_DRAW_50_MOVE 17 //gameId
 #define CTOS_REJECT_DRAW_OFFER 18 //gameId
 #define STOC_LIST_OF_PLAYERS 19
-#define STOC_CHALLENGE_REQUEST 20 //gameId
+#define STOC_CHALLENGE_REQUEST 20 //gameId, username
 #define CTOS_REJECT_MATCH_REQUEST 21 //gameId
 #define CTOS_ACCEPT_REQUEST 22 //gameId
-#define STOC_CANNOT_CHALLENGE_PLAYER 23
+#define STOC_CANNOT_CHALLENGE_PLAYER 23 //game id
 #define STOC_DRAW_OFFERED 24 //gameId
 #define CTOS_ACCEPT_DRAW_OFFER 25 //gameId
 #define STOC_DRAW_OFFER_ACCEPTED 26
@@ -63,6 +63,7 @@
 #define STOC_OPPONENT_CLAIMED_50_MOVE 28
 #define STOC_DRAW_OFFER_REJECTED 29
 #define STOC_USERNAME_VALID 30
+#define STOC_FORWARDING_CHALLENGE_REQUEST 31 //gameId, username
 
 
 //STOC = server to client
@@ -94,7 +95,11 @@ int sendPacket (struct dataPacket *packet, int socket);
 int recievePacket (struct dataPacket **packet, int socket);
 void sendNoArgsPacket (int socket, uint8_t message);
 void sendOneArgIntPacket (int socket, uint8_t message, int arg);
+void sendTwoArgIntPacket(int socket, uint8_t message, int arg1, int arg2);
+void sendOneArgStrPacket (int socket, uint8_t message, char *str);
+void sendIntAndStrPacket (int socket, uint8_t message, int argInt, char *argStr);
 void sendListOfPlayers(int socket, struct clientThread *clients);
+
 
 void sendNormalMove(int socket, uint8_t message, int gameId, struct Move move);
 

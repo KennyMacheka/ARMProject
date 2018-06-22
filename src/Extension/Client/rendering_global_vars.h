@@ -27,6 +27,12 @@ extern const int userInputPaddingx;
 extern const double playersBoxWidth_scale;
 extern const int playersBoxSpacing;
 extern const int playersBox_y_padding;
+extern const int outputOpponentNamePaddingx;
+extern const int outputOpponenty;
+extern const int arrowWidth;
+extern const int arrowHeight;
+extern const int leftArrowPadX;
+extern const int arrowPadY;
 
 
 extern const char whitePiecesPaths[DISTINCT_PIECES][PIECE_PATH_LEN+1];

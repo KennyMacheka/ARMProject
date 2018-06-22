@@ -5,21 +5,13 @@
 #include <assert.h>
 #include "chess_engine.h"
 
-void kingMoves (struct Game *game, struct Piece *king, struct PossibleMoves *moves);
-void pawnMoves (struct Game *game, struct Piece *pawn, struct PossibleMoves *moves);
-void queenMoves (struct Game *game, struct Piece *queen, struct PossibleMoves *moves);
-void rookMoves (struct Game *game, struct Piece *rook, struct PossibleMoves *moves);
-void knightMoves (struct Game *game, struct Piece *knight, struct PossibleMoves *moves);
-void bishopMoves(struct Game *game, struct Piece *bishop, struct PossibleMoves *moves);
 
-struct PossibleMoves *setupMovesStruct();
 void addMove (struct PossibleMoves *moves, struct Piece *piece, int endRow, int endCol);
 void addCastleMove (struct PossibleMoves *moves, struct Piece *king, struct Piece *rook,
                     int endRowKing, int endColKing, int endRowRook, int endColRook);
 void addEnPassant (struct PossibleMoves *moves, struct Piece *piece, int endRow, int endCol);
 
 void getAllPossibleMoves (struct Game *game, enum COLOUR colour, struct PossibleMoves *moves);
-void filterPossibleMoves(struct Game *game, struct PossibleMoves *moves);
 void getMovesRowColumn(struct Game *game, struct Piece *piece, struct PossibleMoves *moves);
 void getMovesDiagonal (struct Game *game, struct Piece *piece, struct PossibleMoves *moves);
 void makeMove (struct Game *game, struct Move *move);
@@ -50,14 +42,14 @@ struct Game *setupGame (){
   struct Piece wN2 = {.piece = KNIGHT, .colour = WHITE, .moved = false, .row = whiteRow, .col = 6};
   struct Piece wR2 = {.piece = ROOK, .colour = WHITE, .moved = false, .row = whiteRow, .col = 7};
 
-  struct Piece bR1 = {.piece = ROOK, .colour = WHITE, .moved = false, .row = blackRow, .col = 0};
-  struct Piece bN1 = {.piece = KNIGHT, .colour = WHITE, .moved = false, .row = blackRow, .col = 1};
-  struct Piece bB1 = {.piece = BISHOP, .colour = WHITE, .moved = false, .row = blackRow, .col = 2};
-  struct Piece bQ = {.piece = QUEEN, .colour = WHITE, .moved = false, .row = blackRow, .col = 3};
-  struct Piece bK = {.piece = KING, .colour = WHITE, .moved = false, .row = blackRow, .col = 4};
-  struct Piece bB2 = {.piece = BISHOP, .colour = WHITE, .moved = false, .row = blackRow, .col = 5};
-  struct Piece bN2 = {.piece = KNIGHT, .colour = WHITE, .moved = false, .row = blackRow, .col = 6};
-  struct Piece bR2 = {.piece = ROOK, .colour = WHITE, .moved = false, .row = blackRow, .col = 7};
+  struct Piece bR1 = {.piece = ROOK, .colour = BLACK, .moved = false, .row = blackRow, .col = 0};
+  struct Piece bN1 = {.piece = KNIGHT, .colour = BLACK, .moved = false, .row = blackRow, .col = 1};
+  struct Piece bB1 = {.piece = BISHOP, .colour = BLACK, .moved = false, .row = blackRow, .col = 2};
+  struct Piece bQ = {.piece = QUEEN, .colour = BLACK, .moved = false, .row = blackRow, .col = 3};
+  struct Piece bK = {.piece = KING, .colour = BLACK, .moved = false, .row = blackRow, .col = 4};
+  struct Piece bB2 = {.piece = BISHOP, .colour = BLACK, .moved = false, .row = blackRow, .col = 5};
+  struct Piece bN2 = {.piece = KNIGHT, .colour = BLACK, .moved = false, .row = blackRow, .col = 6};
+  struct Piece bR2 = {.piece = ROOK, .colour = BLACK, .moved = false, .row = blackRow, .col = 7};
 
   //Add white pieces
   game->board[whiteRow][0]= wR1;
@@ -692,7 +684,7 @@ void getMovesDiagonal (struct Game *game, struct Piece *piece, struct PossibleMo
 void getMovesRowColumn(struct Game *game, struct Piece *piece, struct PossibleMoves *moves){
   /**Gets moves along row and column*/
 
-  assert ((piece->piece == BISHOP || piece->piece == QUEEN) &&
+  assert ((piece->piece == ROOK || piece->piece == QUEEN) &&
           (piece->colour == BLACK || piece->colour == WHITE));
 
   enum COLOUR enemy = piece->colour == WHITE ? BLACK:WHITE;

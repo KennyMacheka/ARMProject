@@ -33,7 +33,6 @@ int recievePacket (struct dataPacket **packet, int socket){
       return -1;
 
     bytesReceived += recieved;
-
   }
 
   if (*packet)
@@ -100,10 +99,38 @@ void sendOneArgIntPacket (int socket, uint8_t message, int arg){
   struct dataPacket packet;
   packet.type = message;
   packet.argc = 1;
-  int *ptr = (int *) &packet.args[0][0];
-  *ptr = arg;
+  * ((int *) (&packet.args[0][0])) = arg;
 
-  sendPacket(&packet,socket);
+  sendPacket(&packet, socket);
+}
+
+void sendTwoArgIntPacket(int socket, uint8_t message, int arg1, int arg2){
+  struct dataPacket packet;
+  packet.type = message;
+  packet.argc = 2;
+  * ((int *) (&packet.args[0][0])) = arg1;
+  * ((int *) (&packet.args[1][0])) = arg2;
+
+  sendPacket(&packet, socket);
+}
+
+
+void sendOneArgStrPacket (int socket, uint8_t message, char *str){
+  struct dataPacket packet;
+  packet.type = message;
+  packet.argc = 1;
+  strcpy(packet.args[0],str);
+
+  sendPacket(&packet, socket);
+}
+
+void sendIntAndStrPacket (int socket, uint8_t message, int argInt, char *argStr){
+  struct dataPacket packet;
+  packet.type = message;
+  packet.argc = 2;
+  * ((int *) (&packet.args[0][0])) = argInt;
+  strcpy(packet.args[1], argStr);
+  sendPacket(&packet, socket);
 }
 
 void sendNormalMove(int socket, uint8_t message, int gameId, struct Move move){
